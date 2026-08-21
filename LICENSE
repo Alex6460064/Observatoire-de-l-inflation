@@ -19,16 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Cette licence couvre le CODE de ce depot.
-
-Les DONNEES restent la propriete de leurs producteurs. Leur reutilisation est
-soumise a leurs licences propres, documentees source par source dans
-docs/SOURCES.md : licence ouverte Etalab, regime par defaut de l'article
-L322-1 du CRPA, ou droit d'auteur pour les publications d'associations.
-
-Les trois obligations communes aux sources publiques reutilisees :
-non-alteration du sens, mention de la source, mention de la date de derniere
-mise a jour. Voir docs/METHODOLOGIE.md section 9.
