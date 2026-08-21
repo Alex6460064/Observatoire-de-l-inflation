@@ -1,0 +1,16 @@
+# Normalise les fins de ligne : le depot stocke en LF, le poste de travail
+# garde ses habitudes. Sans ca, un aller-retour Windows fait apparaitre chaque
+# fichier comme entierement modifie, ce qui rend illisible la revue d'une
+# valeur publiee qui change (ADR 0008).
+* text=auto eol=lf
+
+# Les sorties du pipeline sont relues en diff : LF strict.
+*.csv text eol=lf
+*.json text eol=lf
+
+# Binaires : jamais de conversion.
+*.zip binary
+*.gz binary
+*.xlsx binary
+*.pdf binary
+*.png binary

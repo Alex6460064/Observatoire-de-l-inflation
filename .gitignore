@@ -1,0 +1,56 @@
+# --- Données ---------------------------------------------------------------
+# data/raw/ n'est JAMAIS versionné : les archives carburants pèsent ~2,4 Go
+# décompressées. Tout ce qui s'y trouve doit être re-téléchargeable par le
+# pipeline ; si ça ne l'est pas, c'est un bug de reproductibilité, pas une
+# raison de committer le fichier.
+data/raw/*
+!data/raw/.gitkeep
+
+# data/processed/ EST versionné (ADR 0008) : le CSV rend visible en revue git
+# qu'une valeur publiée a changé. Ne pas ajouter d'exclusion ici.
+
+# data/manual/ EST versionné : c'est le registre de l'ADR 0004.
+
+# Échantillons de test uniquement, jamais d'export complet.
+*.zip
+*.gz
+*.7z
+!tests/fixtures/*.zip
+
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.local
+*.key
+credentials.json
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# --- Outils ----------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- Streamlit -------------------------------------------------------------
+.streamlit/secrets.toml
+
+# --- OS / IDE --------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- Materiau de travail non publie ----------------------------------------
+# Resume de la video a l'origine du projet. Garde en local : il emploie le
+# terme banni par l'ADR 0001 et cite des chiffres non sources au sens de
+# docs/SOURCES.md. Aucun fichier versionne n'y renvoie.
+resume_inflation_video.md
