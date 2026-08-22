@@ -3,51 +3,88 @@
 Ne fait aucun appel reseau : elle lit `data/processed/` et recalcule en direct
 ce qui depend des choix de l'utilisateur (ADR 0008).
 
-ETAT : squelette. Le pipeline n'ecrit pas encore `data/processed/`, donc il n'y
-a rien a afficher. Cette page dit ou en est le projet plutot que de simuler une
-interface sur des donnees inventees.
+Aujourd'hui : une seule courbe, `ipc_officiel` (indice 0 de l'ADR 0002).
+Base `2019-12 = 100` codee en dur, sans selecteur d'interface (ADR 0009).
 """
 
+import json
+from pathlib import Path
+
+import pandas as pd
 import streamlit as st
 
+from observatoire.analyse.indice import rebaser
+from observatoire.viz.courbe import courbe_multi_series
+
 TITRE = "Observatoire de l'Inflation"
+REFERENCE = "2019-12"
+POSTE_IPC_OFFICIEL = "00"
+LABEL_IPC_OFFICIEL = "ipc_officiel"
 
-st.set_page_config(page_title=TITRE, layout="wide")
-st.title(TITRE)
+PRIX_CSV = Path("data/processed/prix.csv")
+META_JSON = Path("data/processed/META.json")
 
-st.info(
-    "**Phase de conception methodologique.** Les sources sont validees et la "
-    "methodologie est arretee ; le pipeline de collecte reste a ecrire. "
-    "Aucune courbe n'est affichee parce qu'aucune donnee n'a encore ete "
-    "collectee — afficher un graphe de demonstration sur des valeurs inventees "
-    "contredirait la regle d'anti-hallucination du projet."
-)
 
-st.subheader("Ce que cette page affichera")
-st.markdown(
-    """
-Cinq indices etiquetes, au pas mensuel, en niveau, base `2019-12 = 100`
-(ADR 0002, ADR 0009, ADR 0013) :
+def charger_prix() -> pd.DataFrame:
+    return pd.read_csv(PRIX_CSV, dtype={"poste": str, "periode": str})
 
-| # | indice | prix | poids |
-|---|---|---|---|
-| 0 | IPC officiel | INSEE | panier moyen national |
-| 1 | IPCH | Eurostat | officiels Eurostat |
-| 2 | IPCH repondere | Eurostat | profil de menage |
-| 3 | IPC repondere | INSEE | profil de menage |
-| 4 | Indice Observatoire | sources propres, poste par poste | profil de menage |
 
-Avec, en permanence : le millesime des poids a cote du panier (ADR 0007), un
-badge de qualite de source par poste de l'indice 4 (ADR 0004), les segments
-interpoles en pointille (ADR 0015), et la date de collecte du dernier run du
-pipeline (ADR 0008).
-"""
-)
+def charger_meta() -> dict:
+    return json.loads(META_JSON.read_text(encoding="utf-8"))
 
-st.subheader("Documentation")
-st.markdown(
-    "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les 17 limites\n"
-    "- `docs/SOURCES.md` — sources retenues et ecartees\n"
-    "- `docs/adr/` — les 19 decisions, avec leurs alternatives ecartees\n"
-    "- `CONTEXT.md` — glossaire contraignant, termes bannis compris"
-)
+
+def periode_moins_douze_mois(periode: str) -> str:
+    """`AAAA-MM` -> meme mois, annee precedente."""
+    annee, mois = periode.split("-")
+    return f"{int(annee) - 1}-{mois}"
+
+
+def main() -> None:
+    st.set_page_config(page_title=TITRE, layout="wide")
+    st.title(TITRE)
+
+    prix = charger_prix()
+    meta = charger_meta()
+
+    ipc_officiel = prix.loc[prix.poste == POSTE_IPC_OFFICIEL]
+    rebase = rebaser(ipc_officiel, REFERENCE).sort_values("periode")
+
+    derniere_periode = rebase["periode"].iloc[-1]
+    valeur_actuelle = rebase.loc[rebase.periode == derniere_periode, "valeur"].item()
+    evolution_depuis_reference = valeur_actuelle / 100.0 - 1
+
+    periode_precedente = periode_moins_douze_mois(derniere_periode)
+    valeurs_precedentes = rebase.loc[rebase.periode == periode_precedente, "valeur"]
+
+    col_graphe, col_chiffres = st.columns([3, 1])
+
+    with col_graphe:
+        table_viz = rebase.assign(serie=LABEL_IPC_OFFICIEL)[
+            ["serie", "periode", "valeur", "interpole"]
+        ]
+        st.plotly_chart(courbe_multi_series(table_viz), use_container_width=True)
+
+    with col_chiffres:
+        st.metric(
+            f"Evolution depuis {REFERENCE}",
+            f"{evolution_depuis_reference:+.1%}",
+        )
+        if valeurs_precedentes.empty:
+            st.metric("Glissement annuel", "n/a")
+            st.caption(f"Periode {periode_precedente} absente des donnees.")
+        else:
+            glissement_annuel = valeur_actuelle / valeurs_precedentes.item() - 1
+            st.metric("Glissement annuel", f"{glissement_annuel:+.1%}")
+
+        st.caption(f"Date de collecte : {meta['date_collecte']}")
+
+    st.subheader("Documentation")
+    st.markdown(
+        "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les 17 limites\n"
+        "- `docs/SOURCES.md` — sources retenues et ecartees\n"
+        "- `docs/adr/` — les 19 decisions, avec leurs alternatives ecartees\n"
+        "- `CONTEXT.md` — glossaire contraignant, termes bannis compris"
+    )
+
+
+main()
