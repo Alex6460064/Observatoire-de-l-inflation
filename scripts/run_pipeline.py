@@ -18,9 +18,15 @@ from observatoire.collecte.eurostat import (
     fetch_eurostat_ipch_officiel,
     fetch_eurostat_ipch_poids_articles,
 )
-from observatoire.collecte.insee import fetch_insee_ipc_officiel
+from observatoire.collecte.insee import (
+    fetch_insee_ipc_officiel,
+    fetch_insee_prix_par_sous_classe,
+)
 from observatoire.traitement.eurostat import normaliser_eurostat_ipch_officiel
-from observatoire.traitement.insee import normaliser_insee_ipc_officiel
+from observatoire.traitement.insee import (
+    normaliser_insee_ipc_officiel,
+    normaliser_insee_prix_sous_classe,
+)
 from observatoire.traitement.poids import assembler_poids_quintiles
 
 PRIX_CSV = Path("data/processed/prix.csv")
@@ -32,18 +38,32 @@ COLONNES_PRIX = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 COLONNES_POIDS = ["axe", "modalite", "poste", "pm"]
 
 
-def collecter_et_normaliser_toutes_sources() -> pd.DataFrame:
+def postes_avec_poids_non_nul(poids: pd.DataFrame) -> list[str]:
+    """Postes a collecter cote prix INSEE : ceux qui pesent reellement quelque
+    chose dans au moins un quintile (ticket #12) -- inutile de collecter un
+    poste qui pese zero partout.
+    """
+    return sorted(poids.loc[poids.pm > 0, "poste"].unique())
+
+
+def collecter_et_normaliser_toutes_sources(poids: pd.DataFrame) -> pd.DataFrame:
     """Appelle collecte + traitement pour chaque source connue.
 
-    Aujourd'hui : INSEE (indice 0, `ipc_officiel`) et Eurostat (indice 1, `ipch`).
+    INSEE (indice 0, `ipc_officiel`), Eurostat (indice 1, `ipch`), et prix
+    INSEE par sous-classe COICOP 2018 pour l'indice 3 (`poids` fournit la
+    liste des postes a collecter).
     """
     normalise_insee = normaliser_insee_ipc_officiel(fetch_insee_ipc_officiel())
     normalise_eurostat = normaliser_eurostat_ipch_officiel(
         fetch_eurostat_ipch_officiel()
     )
-    return pd.concat([normalise_insee, normalise_eurostat], ignore_index=True)[
-        COLONNES_PRIX
-    ]
+    normalise_insee_sous_classe = normaliser_insee_prix_sous_classe(
+        fetch_insee_prix_par_sous_classe(postes_avec_poids_non_nul(poids))
+    )
+    return pd.concat(
+        [normalise_insee, normalise_eurostat, normalise_insee_sous_classe],
+        ignore_index=True,
+    )[COLONNES_PRIX]
 
 
 def assembler_poids() -> pd.DataFrame:
@@ -68,8 +88,8 @@ def ecrire_meta(chemin: Path, date_collecte: date) -> None:
 
 
 def main() -> None:
-    prix = collecter_et_normaliser_toutes_sources()
     poids = assembler_poids()
+    prix = collecter_et_normaliser_toutes_sources(poids)
 
     PRIX_CSV.parent.mkdir(parents=True, exist_ok=True)
     prix.to_csv(PRIX_CSV, index=False)
