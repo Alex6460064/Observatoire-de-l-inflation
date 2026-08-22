@@ -11,6 +11,7 @@ Contrat de la couche :
 - aucun calcul. Pas de moyenne, pas de rebasage, pas d'indice.
 """
 
+from observatoire.collecte.eurostat import fetch_eurostat_ipch_officiel
 from observatoire.collecte.insee import fetch_insee_ipc_officiel
 
-__all__ = ["fetch_insee_ipc_officiel"]
+__all__ = ["fetch_eurostat_ipch_officiel", "fetch_insee_ipc_officiel"]
