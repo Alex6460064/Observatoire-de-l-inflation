@@ -224,6 +224,7 @@ Le périmètre du panier n'est plus une question ouverte : il est fixé par l'AD
 observatoire-inflation/
   README.md                 — présentation, install, méthodo en résumé (soigné, orienté CV)
   CLAUDE.md                 — ce fichier
+  CONTEXT.md                 — glossaire contraignant, fait foi pour les libellés (termes bannis compris)
   pyproject.toml            — dépendances (géré par uv)
   uv.lock
   .env.example              — variables d'env attendues (jamais de vraie clé committée)
@@ -231,6 +232,7 @@ observatoire-inflation/
 
   data/
     raw/                    — données brutes téléchargées, jamais modifiées à la main
+    manual/                  — relevés sans API, versionnés avec leur source (ADR 0004)
     processed/               — données nettoyées / transformées, reproductibles depuis raw/
 
   src/observatoire/
@@ -247,6 +249,7 @@ observatoire-inflation/
   docs/
     SOURCES.md               — sources de données validées (voir section anti-hallucination)
     METHODOLOGIE.md          — formules et hypothèses de calcul, validées avant codage
+    adr/                     — décisions d'architecture, alternatives écartées comprises
 ```
 
 **Règle de séparation stricte** : collecte (télécharger, ne rien transformer)

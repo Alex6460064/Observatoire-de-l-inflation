@@ -1,11 +1,17 @@
 [project]
 name = "observatoire-inflation"
 version = "0.1.0"
-description = "Compare l'IPC officiel de l'INSEE au meme indice repondere par la structure de budget d'un profil de menage."
+description = "Compare l'IPC officiel de l'INSEE a quatre autres indices etiquetes, memes prix ou sources propres recombines avec la structure de budget d'un profil de menage (ADR 0002)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pandas>=2.2",
+    # pandas/numpy epingles sur la premiere version publiant un wheel cp314 :
+    # sur cette machine (Windows, Smart App Control actif), les wheels les
+    # plus recentes de numpy/pandas sont bloquees au chargement faute de
+    # reputation suffisante. Ne pas faire `uv lock --upgrade` sur ces deux
+    # lignes sans re-tester l'import.
+    "pandas==2.3.3",
+    "numpy==2.3.2",
     "requests>=2.32",
     "streamlit>=1.40",
     "plotly>=5.24",

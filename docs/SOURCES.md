@@ -61,6 +61,24 @@ métropolitaine » dont nous ne voulons pas.
 Dataflows disponibles : `IPC-2025`, `IPC-2015`, `IPCH-2025`, `IPCH-2015`,
 `IPC-1998`, `IPC-1990`, `IPC-1970-1980`, `IPC-PM-2015`, `IPCH-2005`.
 
+### Clé vérifiée pour l'indice 0 — IPC officiel, France entière, ensemble
+
+Requête réelle, testée le 22/08/2026 (`collecte/insee.py`) :
+
+```
+GET https://api.insee.fr/series/BDM/V1/data/IPC-2025/M.IPC.SO.00.SO.INDICE.ENSEMBLE.FE.SO.BRUT.2025.FALSE
+```
+
+Cible une série unique, `IDBANK 011814630`. Codes de dimension confirmés en
+inspectant la réponse (pas de codelist consultée séparément) :
+
+| dimension | valeur | signifie |
+|---|---|---|
+| `COICOP2018` | `00` | total, tous postes |
+| `PRIX_CONSO` | `SO` | hors loyers imputés (le code `00` sur cette dimension donne la variante « y compris loyers imputés », non publiée comme IPC officiel) |
+| `MENAGES_IPC` | `ENSEMBLE` | tous ménages (`URBAIN` = ménages urbains ouvrier/employé, écarté) |
+| `REF_AREA` | `FE` | France entière (`FM` = France métropolitaine, écarté) |
+
 ---
 
 ## Eurostat — prix (indices 1, 2 et 4)
@@ -527,6 +545,77 @@ La base ne publie aucune variable de surface — seulement un nombre de pièces
 (`P22_RP_1P` à `P22_RP_5P`), et non ventilé par statut d'occupation. La
 pondération par nombre de logements sous-pondère donc les communes à grands
 logements. À écrire dans les limites.
+
+---
+
+## ARCEP — indice des prix des communications électroniques (indice 4, `CP08`)
+
+Testé le 22/08/2026. Publication annuelle de l'Arcep (autorité de régulation,
+**pas un institut statistique** — validé comme source indice 4 le 22/08/2026),
+« Évolution des prix des services de communications électroniques ». PDF récupéré
+et lu en entier.
+
+<https://www.arcep.fr/cartes-et-donnees/nos-publications-chiffrees/marches-des-communications-electroniques-en-france-enquetes-trimestrielles-et-annuelles/indice-des-prix-des-services-fixes-et-mobiles.html>
+
+Dernière édition : `evolution-prix-services-fixes-mobiles-2025_mai2026.pdf`,
+28/05/2026, 1,2 Mo. Méthodologie « inspirée de celle de l'Insee », mais
+**sans ajustement hédonique** : la qualité (débit, techno) est traitée par
+**segmentation** — DSL et fibre restent deux profils de prix distincts, jamais
+mélangés dans une régression — et non par correction d'un indice unique.
+
+### Deux indices publiés, à ne pas confondre
+
+- **Indice des prix** — évolution du prix des offres catalogue, usages et
+  structure de clientèle neutralisés. **C'est celui retenu pour `CP08`.**
+- **Indice de dépense minimale** — inclut usages et structure clientèle, mis à
+  jour chaque janvier. Pas un indice de prix pur. **Ne jamais l'utiliser comme
+  substitut de `CP08`.**
+
+Base 100 : janvier 2012 (services fixes), janvier 2010 (services mobiles).
+Valeurs relevées le 22/08/2026, indice des prix en moyenne annuelle :
+
+| | 2021 | 2022 | 2023 | 2024 | 2025 |
+|---|---|---|---|---|---|
+| Fixe, ensemble | 79,6 | 81,1 | 82,3 | 77,8 | 74,6 |
+| Mobile, ensemble des forfaits | 45,7 | 45,4 | 42,5 | 35,5 | 32,6 |
+
+### Panel, pas un scraping indépendant
+
+Données transmises par **4 opérateurs seulement** (Bouygues Telecom, Free,
+Orange, SFR) sous obligation réglementaire (décision Arcep n° 2025-0429), plus
+les MVNO de plus d'un million de clients pour le mobile. Clients professionnels
+et Outre-mer exclus.
+
+⚠️ **Les prix par offre ne sont jamais publiés.** Confidentiels, transmis par
+les opérateurs. Seuls les indices agrégés sortent, en PDF : un tableau annuel
+(2021→2025 dans l'édition 2025) et des graphiques avec valeurs ponctuelles
+étiquetées année par année — pas une série mensuelle exploitable en l'état.
+
+### Licence — régime différent des autres sources publiques
+
+Vérifié le 22/08/2026 sur `arcep.fr/mentions-legales.html`. **Pas de Licence
+Ouverte.** Citation exacte :
+
+> Les informations présentées sur ce site sont des données publiques qui ne
+> peuvent être utilisées à des fins commerciales ou publicitaires.
+
+Réutilisation permise si intégrité respectée, source et date citées, lien
+retour vers l'original. Régime plus restrictif que la Licence Ouverte (qui
+autorise l'usage commercial) et différent du régime par défaut L322-1 CRPA
+documenté plus bas pour la CRE et la Carte des loyers. Compatible avec le
+projet (non commercial), mais **à ne pas généraliser aux autres sources** sans
+vérification individuelle.
+
+### Qualité et limites, pour `docs/METHODOLOGIE.md`
+
+Qualité `etude_publiee` : protocole publié, échantillon et méthode décrits,
+mais **pas rejouable** — panel fermé aux 4 opérateurs, données brutes non
+publiques. Relevé restera manuel, un point par an, comme Familles Rurales.
+
+⚠️ Substitue le sous-indice `CP08` de l'INSEE ; garde les poids HBS inchangés.
+Étendre le périmètre de l'indice Observatoire (ADR 0014, 4 postes en v1) à un
+cinquième poste `CP08` reste **une décision d'architecture séparée**, pas
+tranchée par ce test de source — à formaliser dans un ADR si retenu.
 
 ---
 

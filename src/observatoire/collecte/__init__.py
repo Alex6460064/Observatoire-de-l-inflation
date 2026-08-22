@@ -10,3 +10,7 @@ Contrat de la couche :
   inattendu) : aucune exception reseau brute ne remonte au dashboard ;
 - aucun calcul. Pas de moyenne, pas de rebasage, pas d'indice.
 """
+
+from observatoire.collecte.insee import fetch_insee_ipc_officiel
+
+__all__ = ["fetch_insee_ipc_officiel"]
