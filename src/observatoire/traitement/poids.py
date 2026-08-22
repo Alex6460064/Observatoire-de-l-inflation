@@ -7,6 +7,8 @@ resultat sans savoir qu'il vient d'une transposition.
 Aucun appel reseau, aucun effet de bord.
 """
 
+from collections.abc import Iterable
+
 import pandas as pd
 
 # Meme esprit que TOLERANCE_POUR_MILLE dans analyse/indice.py : absorbe
@@ -171,3 +173,53 @@ def assembler_poids_quintiles(
         .sort_values(["modalite", "poste"])
         .reset_index(drop=True)
     )
+
+
+def postes_sans_historique_a_la_reference(
+    prix: pd.DataFrame,
+    postes: Iterable[str],
+    reference: str,
+) -> list[str]:
+    """Postes sans valeur de prix a `reference`, parmi `postes`.
+
+    Un poste dont le prix n'est pas publie a la reference ne peut pas etre
+    rebase par `analyse.indice.rebaser` (docs/METHODOLOGIE.md 3.3, panier
+    indice 3 : 12 des 234 postes INSEE n'ont pas d'historique jusqu'a
+    `2019-12`, le plus recent commencant en 2025-01).
+
+    Args:
+        prix: table longue `poste, periode, ...` (colonnes supplementaires
+            ignorees).
+        postes: codes a verifier.
+        reference: periode de reference, ex. "2019-12".
+
+    Returns:
+        Sous-ensemble trie de `postes` absent de `prix` a `reference`.
+    """
+    presents = set(prix.loc[prix.periode == reference, "poste"])
+    return sorted(set(postes) - presents)
+
+
+def exclure_postes_du_panier(
+    poids: pd.DataFrame,
+    postes_a_exclure: Iterable[str],
+) -> pd.DataFrame:
+    """Retire des postes du panier pondere et renormalise chaque modalite.
+
+    Panier partiel documente plutot que donnee inventee : les 12 postes de
+    `postes_sans_historique_a_la_reference` en sont l'usage prevu
+    (docs/METHODOLOGIE.md 3.3).
+
+    Args:
+        poids: table longue `axe, modalite, poste, pm`.
+        postes_a_exclure: codes a retirer du panier.
+
+    Returns:
+        La meme table sans les postes exclus, `pm` renormalise a 1000 pour
+        mille independamment pour chaque modalite.
+    """
+    out = poids.loc[~poids.poste.isin(set(postes_a_exclure))].copy()
+    out["pm"] = out.groupby("modalite")["pm"].transform(
+        lambda s: s * (TOTAL_POUR_MILLE / s.sum())
+    )
+    return out.sort_values(["modalite", "poste"]).reset_index(drop=True)

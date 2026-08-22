@@ -3,9 +3,12 @@
 Ne fait aucun appel reseau : elle lit `data/processed/` et recalcule en direct
 ce qui depend des choix de l'utilisateur (ADR 0008).
 
-Aujourd'hui : deux courbes, `ipc_officiel` (indice 0) et `ipch` (indice 1) de
-l'ADR 0002. Base `2019-12 = 100` codee en dur, sans selecteur d'interface
-(ADR 0009).
+Trois courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
+`2019-12 = 100` codee en dur (ADR 0009) ; et `ipc_repondere` (indice 3),
+recalcule en direct a chaque changement de quintile via un selecteur
+Streamlit -- seule la repondering est dynamique (docs/METHODOLOGIE.md
+section 7), `rebaser`/`indice` de `analyse/indice.py` sont reutilises tels
+quels.
 """
 
 import json
@@ -15,14 +18,20 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from observatoire.analyse.indice import rebaser
+from observatoire.analyse.indice import indice, rebaser
 from observatoire.viz.courbe import courbe_multi_series
 
 TITRE = "Observatoire de l'Inflation"
 REFERENCE = "2019-12"
 
 PRIX_CSV = Path("data/processed/prix.csv")
+POIDS_CSV = Path("data/processed/poids.csv")
 META_JSON = Path("data/processed/META.json")
+
+# Seul axe de profil expose en v1 (ADR 0011) -- docs/METHODOLOGIE.md section 7.
+AXE_QUINTILE_REVENU = "quintile_revenu"
+QUINTILES = ("QU1", "QU2", "QU3", "QU4", "QU5")
+MILLESIME_POIDS = "enquete Budget de famille 2017"
 
 
 @dataclass(frozen=True)
@@ -42,6 +51,10 @@ def charger_prix() -> pd.DataFrame:
     return pd.read_csv(PRIX_CSV, dtype={"poste": str, "periode": str})
 
 
+def charger_poids() -> pd.DataFrame:
+    return pd.read_csv(POIDS_CSV, dtype={"poste": str, "modalite": str})
+
+
 def charger_meta() -> dict:
     return json.loads(META_JSON.read_text(encoding="utf-8"))
 
@@ -57,14 +70,61 @@ def rebaser_indice(prix: pd.DataFrame, indice: Indice) -> pd.DataFrame:
     return rebaser(brut, REFERENCE).sort_values("periode").assign(serie=indice.label)
 
 
+def calculer_indice_3(
+    prix: pd.DataFrame, poids: pd.DataFrame, modalite: str
+) -> pd.DataFrame:
+    """Indice 3 (IPC repondere), recalcule en direct pour une modalite de quintile.
+
+    Prix INSEE par sous-classe COICOP 2018, poids du quintile choisi
+    (`poids.csv`, deja renormalises a 1000 pour mille -- docs/METHODOLOGIE.md
+    3.3). La courbe ne demarre qu'a la premiere periode ou tous les postes du
+    panier ont une valeur (limite 18, meme principe que la limite 17) :
+    `indice` refuse tout point agrege sur un panier partiel plutot que de
+    l'afficher silencieusement.
+    """
+    vecteur = (
+        poids.loc[
+            (poids.axe == AXE_QUINTILE_REVENU)
+            & (poids.modalite == modalite)
+            & (poids.pm > 0)
+        ]
+        .set_index("poste")
+        .pm
+    )
+    brut = prix.loc[(prix.source == "insee") & (prix.poste.isin(vecteur.index))]
+    debut = brut.groupby("poste").periode.min().max()
+    brut = brut.loc[brut.periode >= debut]
+
+    rebase = rebaser(brut, REFERENCE)
+    valeurs = indice(rebase, vecteur)
+
+    return pd.DataFrame(
+        {
+            "serie": "ipc_repondere",
+            "periode": valeurs.index,
+            "valeur": valeurs.to_numpy(),
+            "interpole": False,
+        }
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title=TITRE, layout="wide")
     st.title(TITRE)
 
     prix = charger_prix()
+    poids = charger_poids()
     meta = charger_meta()
 
+    col_selecteur, _ = st.columns([1, 3])
+    with col_selecteur:
+        modalite = st.selectbox(
+            "Quintile de niveau de vie (indice repondere)", QUINTILES, index=2
+        )
+        st.caption(f"Poids de profil : {MILLESIME_POIDS}.")
+
     rebases = [rebaser_indice(prix, indice) for indice in INDICES]
+    rebases.append(calculer_indice_3(prix, poids, modalite))
 
     col_graphe, col_chiffres = st.columns([3, 1])
 
@@ -104,7 +164,7 @@ def main() -> None:
 
     st.subheader("Documentation")
     st.markdown(
-        "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les 17 limites\n"
+        "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les 18 limites\n"
         "- `docs/SOURCES.md` — sources retenues et ecartees\n"
         "- `docs/adr/` — les 19 decisions, avec leurs alternatives ecartees\n"
         "- `CONTEXT.md` — glossaire contraignant, termes bannis compris"

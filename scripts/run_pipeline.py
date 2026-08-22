@@ -27,7 +27,11 @@ from observatoire.traitement.insee import (
     normaliser_insee_ipc_officiel,
     normaliser_insee_prix_sous_classe,
 )
-from observatoire.traitement.poids import assembler_poids_quintiles
+from observatoire.traitement.poids import (
+    assembler_poids_quintiles,
+    exclure_postes_du_panier,
+    postes_sans_historique_a_la_reference,
+)
 
 PRIX_CSV = Path("data/processed/prix.csv")
 POIDS_CSV = Path("data/processed/poids.csv")
@@ -36,6 +40,10 @@ CORRESPONDANCE_CSV = Path("data/manual/correspondance_coicop.csv")
 
 COLONNES_PRIX = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 COLONNES_POIDS = ["axe", "modalite", "poste", "pm"]
+
+# Meme reference que dashboard.py (ADR 0009) : synchronisee a la main, un seul
+# lieu de verite n'existe pas encore dans le projet.
+REFERENCE = "2019-12"
 
 
 def postes_avec_poids_non_nul(poids: pd.DataFrame) -> list[str]:
@@ -90,6 +98,14 @@ def ecrire_meta(chemin: Path, date_collecte: date) -> None:
 def main() -> None:
     poids = assembler_poids()
     prix = collecter_et_normaliser_toutes_sources(poids)
+
+    # Un poste pondere sans historique jusqu'a REFERENCE ne peut pas etre
+    # rebase (docs/METHODOLOGIE.md 3.3) : exclu du panier, poids renormalise.
+    postes_insee = prix.loc[prix.source == "insee"]
+    sans_historique = postes_sans_historique_a_la_reference(
+        postes_insee, postes_avec_poids_non_nul(poids), REFERENCE
+    )
+    poids = exclure_postes_du_panier(poids, sans_historique)
 
     PRIX_CSV.parent.mkdir(parents=True, exist_ok=True)
     prix.to_csv(PRIX_CSV, index=False)

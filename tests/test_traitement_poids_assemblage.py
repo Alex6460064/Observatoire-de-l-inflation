@@ -8,7 +8,11 @@ Fixtures synthetiques uniquement : aucun appel reseau.
 import pandas as pd
 import pytest
 
-from observatoire.traitement.poids import assembler_poids_quintiles
+from observatoire.traitement.poids import (
+    assembler_poids_quintiles,
+    exclure_postes_du_panier,
+    postes_sans_historique_a_la_reference,
+)
 
 QUINTILES = ("QU1", "QU2", "QU3", "QU4", "QU5")
 
@@ -106,3 +110,87 @@ def test_assemblage_leve_erreur_si_une_modalite_de_quintile_manque():
 
     with pytest.raises(ValueError, match="QU5"):
         assembler_poids_quintiles(hbs, iw, table)
+
+
+# --- postes_sans_historique_a_la_reference ----------------------------------
+
+
+def prix_long(lignes):
+    return pd.DataFrame(lignes, columns=["source", "poste", "periode", "valeur"])
+
+
+def test_postes_sans_historique_detecte_un_poste_absent_a_la_reference():
+    # docs/METHODOLOGIE.md : 12 des 234 postes INSEE de l'indice 3 n'ont pas
+    # d'historique jusqu'a 2019-12 (le plus recent commence en 2025-01).
+    prix = prix_long(
+        [
+            ("insee", "CP01111", "2019-12", 100.0),
+            ("insee", "CP06310", "2025-01", 99.63),  # pas de 2019-12
+        ]
+    )
+
+    out = postes_sans_historique_a_la_reference(prix, ["CP01111", "CP06310"], "2019-12")
+
+    assert out == ["CP06310"]
+
+
+def test_postes_sans_historique_vide_si_tous_couverts():
+    prix = prix_long(
+        [
+            ("insee", "CP01111", "2019-12", 100.0),
+            ("insee", "CP04210", "2019-12", 63.49),
+        ]
+    )
+
+    out = postes_sans_historique_a_la_reference(prix, ["CP01111", "CP04210"], "2019-12")
+
+    assert out == []
+
+
+# --- exclure_postes_du_panier -----------------------------------------------
+
+
+def test_exclure_postes_retire_le_poste_et_renormalise_a_1000():
+    poids = pd.DataFrame(
+        [
+            {
+                "axe": "quintile_revenu",
+                "modalite": "QU1",
+                "poste": "CP01111",
+                "pm": 800.0,
+            },
+            {
+                "axe": "quintile_revenu",
+                "modalite": "QU1",
+                "poste": "CP06310",
+                "pm": 200.0,
+            },
+        ]
+    )
+
+    out = exclure_postes_du_panier(poids, ["CP06310"])
+
+    assert list(out["poste"]) == ["CP01111"]
+    assert out["pm"].iloc[0] == pytest.approx(1000.0)
+
+
+def test_exclure_postes_renormalise_chaque_modalite_independamment():
+    poids = pd.DataFrame(
+        [
+            {"axe": "quintile_revenu", "modalite": "QU1", "poste": "A", "pm": 600.0},
+            {"axe": "quintile_revenu", "modalite": "QU1", "poste": "B", "pm": 200.0},
+            {"axe": "quintile_revenu", "modalite": "QU1", "poste": "X", "pm": 200.0},
+            {"axe": "quintile_revenu", "modalite": "QU2", "poste": "A", "pm": 500.0},
+            {"axe": "quintile_revenu", "modalite": "QU2", "poste": "B", "pm": 400.0},
+            {"axe": "quintile_revenu", "modalite": "QU2", "poste": "X", "pm": 100.0},
+        ]
+    )
+
+    out = exclure_postes_du_panier(poids, ["X"])
+    sommes = out.groupby("modalite").pm.sum()
+
+    assert "X" not in set(out["poste"])
+    assert (sommes.round(6) == 1000.0).all()
+    # QU1 : 600/800 et 200/800 conserves proportionnellement.
+    qu1 = out.loc[out.modalite == "QU1"].set_index("poste").pm
+    assert qu1["A"] / qu1["B"] == pytest.approx(3.0)

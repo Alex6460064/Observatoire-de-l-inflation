@@ -203,6 +203,18 @@ transposé de chaque modalité est donc mis à l'échelle pour sommer exactement
 conservant la masse par groupe, remettre à l'échelle avant ou après ne
 change pas les parts relatives. Décidé le 22/08/2026.
 
+**Panier partiel : deux postes sans historique jusqu'à la référence.**
+`rebaser` (section 5.2) exige une valeur de prix à `2019-12` pour chaque
+poste pondéré. Sur les 234 postes INSEE pondérés de l'indice 3, deux n'ont
+pas de série remontant jusque-là (vérifié le 22/08/2026) : `CP06310`
+(commence en 2025-01) et `CP10102` (commence en 2025-05, poids nul pour
+`QU1`/`QU2`). Poids perdu par quintile après exclusion et renormalisation :
+`QU1` 0,40 ‰, `QU2` 0,40 ‰, `QU3` 1,41 ‰, `QU4` 1,42 ‰, `QU5` 1,43 ‰ — sous
+1,5 ‰ dans tous les cas. Décidé avec Alexandre le 22/08/2026 : les exclure
+du panier pondéré plutôt que d'inventer une valeur à la référence, et
+renormaliser le reste à 1000 ‰ (`traitement.poids.exclure_postes_du_panier`),
+même logique que la renormalisation ci-dessus.
+
 ### 3.4 Le poste `CP042`, loyers imputés
 
 `CP042` pèse jusqu'à **169 ‰** dans les poids HBS mais **n'existe pas dans
@@ -602,6 +614,16 @@ qui veut savoir d'où sort un pourcentage doit ouvrir ce document (ADR 0017).
 **17. L'indice Observatoire démarrera plus tard que les quatre autres.** Sa
 couverture est plafonnée par ses sources les plus courtes. **La courbe sera plus
 courte, et l'interface doit le montrer, pas le masquer** (ADR 0009).
+
+**18. L'indice 3 démarre en 2019-01, pas en 1996.** Sur les 234 postes INSEE
+pondérés, deux (`CP06310`, `CP10102`, exclus du panier ci-dessus) publient une
+série trop récente, mais **d'autres postes réellement inclus dans le panier
+ont eux aussi une série qui débute après 1996** sans être exclus (leur poids
+est présent à `2019-12`, la référence, donc `rebaser` les accepte). La
+première période où les 232 postes restants ont tous une valeur est `2019-01`
+— vérifié le 22/08/2026, identique pour les cinq quintiles. La courbe indice 3
+n'a donc que 91 points, contre 367 pour l'IPC officiel et l'IPCH. Même
+principe que la limite 17 : **la courbe est courte, l'interface le montre**.
 
 ---
 
