@@ -14,6 +14,11 @@ import pandas as pd
 # (poids IPCH manquant ou invalide pour une sous-classe du groupe).
 TOLERANCE_POUR_MILLE = 0.5
 
+# Seul axe de profil expose en v1 (ADR 0011) -- docs/METHODOLOGIE.md section 7.
+AXE_QUINTILE_REVENU = "quintile_revenu"
+
+QUINTILES = ("QU1", "QU2", "QU3", "QU4", "QU5")
+
 
 def transposer_poids_hbs(
     poids_hbs: pd.Series,
@@ -93,3 +98,66 @@ def transposer_poids_hbs(
             resultat[c] = resultat.get(c, 0.0) + part
 
     return pd.Series(resultat, name="pm").sort_index()
+
+
+def assembler_poids_quintiles(
+    poids_hbs_long: pd.DataFrame,
+    poids_iw_long: pd.DataFrame,
+    correspondance: pd.DataFrame,
+) -> pd.DataFrame:
+    """Empile `transposer_poids_hbs` sur les cinq modalites de quintile.
+
+    C'est l'assemblage reel de `data/processed/poids.csv` (ticket #11,
+    docs/METHODOLOGIE.md section 7) : un appel a `transposer_poids_hbs` par
+    modalite `QU1`..`QU5`, empiles en table longue.
+
+    Args:
+        poids_hbs_long: table `modalite, poste, valeur` (sortie de
+            `collecte.eurostat.fetch_eurostat_hbs_poids`).
+        poids_iw_long: table `poste, valeur` (sortie de
+            `collecte.eurostat.fetch_eurostat_ipch_poids_articles`).
+        correspondance: table `coicop_2018, coicop_1999`
+            (data/manual/correspondance_coicop.csv).
+
+    Returns:
+        Table longue `axe, modalite, poste, pm`, `axe` valant toujours
+        `quintile_revenu` (ADR 0011, seul axe expose en v1).
+
+    Raises:
+        ValueError: une modalite de `QU1`..`QU5` est absente de
+            `poids_hbs_long`, ou toute erreur de `transposer_poids_hbs`
+            propagee pour la modalite en cause.
+    """
+    modalites = set(poids_hbs_long.modalite)
+    manquantes = sorted(set(QUINTILES) - modalites)
+    if manquantes:
+        raise ValueError(
+            f"Modalites de quintile absentes de la collecte HBS : "
+            f"{manquantes}. Un poids.csv incomplet ne peut pas etre ecrit."
+        )
+
+    poids_iw = poids_iw_long.set_index("poste").valeur
+
+    lignes = []
+    for modalite in QUINTILES:
+        vecteur = (
+            poids_hbs_long.loc[poids_hbs_long.modalite == modalite]
+            .set_index("poste")
+            .valeur
+        )
+        transpose = transposer_poids_hbs(vecteur, poids_iw, correspondance)
+        for poste, pm in transpose.items():
+            lignes.append(
+                {
+                    "axe": AXE_QUINTILE_REVENU,
+                    "modalite": modalite,
+                    "poste": poste,
+                    "pm": pm,
+                }
+            )
+
+    return (
+        pd.DataFrame(lignes, columns=["axe", "modalite", "poste", "pm"])
+        .sort_values(["modalite", "poste"])
+        .reset_index(drop=True)
+    )

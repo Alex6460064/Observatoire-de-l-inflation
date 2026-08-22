@@ -114,16 +114,29 @@ def test_fetch_hbs_poids_renvoie_les_cinq_quintiles_sans_unk(monkeypatch, tmp_pa
     assert list(out.columns) == ["modalite", "poste", "valeur"]
 
 
-def test_fetch_hbs_poids_valeurs_conformes_a_docs_sources(monkeypatch, tmp_path):
-    # docs/SOURCES.md, table hbs_str_t211 : CP01 QU1=147, QU3=154, QU5=128.
+def test_fetch_hbs_poids_valeurs_conformes_a_l_api(monkeypatch, tmp_path):
+    # Reponse reelle du 22/08/2026, code groupe CP011 (voir fixture).
     _reponse_factice(monkeypatch, 200, _REPONSE_HBS_POIDS)
 
     out = fetch_eurostat_hbs_poids(raw_dir=tmp_path)
     out = out.set_index(["modalite", "poste"]).valeur
 
-    assert out[("QU1", "CP01")] == 147
-    assert out[("QU3", "CP01")] == 154
-    assert out[("QU5", "CP01")] == 128
+    assert out[("QU1", "CP011")] == 134
+    assert out[("QU3", "CP011")] == 143
+    assert out[("QU5", "CP011")] == 119
+
+
+def test_fetch_hbs_poids_exclut_les_codes_hors_niveau_groupe(monkeypatch, tmp_path):
+    # docs/METHODOLOGIE.md 3.2 : seuls les 47 groupes HBS a trois chiffres
+    # ("CP" + 3 chiffres) sont utilisables par la transposition. `CP01`
+    # (niveau division, 2 chiffres) fait partie des "sous-niveaux melanges"
+    # de l'API et doit etre exclu, sous peine de fausser la jointure avec
+    # data/manual/correspondance_coicop.csv (ticket #11).
+    _reponse_factice(monkeypatch, 200, _REPONSE_HBS_POIDS)
+
+    out = fetch_eurostat_hbs_poids(raw_dir=tmp_path)
+
+    assert set(out["poste"]) == {"CP011"}
 
 
 def test_fetch_hbs_poids_ecrit_le_json_brut_dans_raw_dir(monkeypatch, tmp_path):

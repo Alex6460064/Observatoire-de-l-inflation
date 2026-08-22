@@ -53,6 +53,13 @@ QUINTILES = ("QU1", "QU2", "QU3", "QU4", "QU5")
 # le 22/08/2026, voir docs/SOURCES.md.
 REGEX_SOUS_CLASSE = re.compile(r"CP\d{5}$")
 
+# Groupe HBS ECOICOP v1 : "CP" + 3 chiffres. `hbs_str_t223` renvoie 150 codes
+# "groupes et sous-niveaux melanges" (docs/SOURCES.md) ; seuls les 47 groupes
+# a trois chiffres sont le niveau que la transposition attend en entree
+# (docs/METHODOLOGIE.md 3.2) et que couvre
+# data/manual/correspondance_coicop.csv.
+REGEX_GROUPE_HBS = re.compile(r"CP\d{3}$")
+
 TIMEOUT_SECONDES = 30
 
 
@@ -223,7 +230,10 @@ def fetch_eurostat_hbs_poids(raw_dir: Path = Path("data/raw")) -> pd.DataFrame:
 
     Returns:
         Table longue `modalite, poste, valeur`, les modalites `QU1` a `QU5`
-        (la modalite `UNK` de l'API est exclue, hors perimetre ADR 0011).
+        (la modalite `UNK` de l'API est exclue, hors perimetre ADR 0011),
+        filtree aux 47 groupes HBS a trois chiffres (format `CP` + 3
+        chiffres) -- les codes division et sous-niveaux melanges dans
+        l'API sont exclus (docs/METHODOLOGIE.md 3.2).
 
     Raises:
         requests.RequestException: erreur reseau ou timeout.
@@ -237,7 +247,9 @@ def fetch_eurostat_hbs_poids(raw_dir: Path = Path("data/raw")) -> pd.DataFrame:
     )
 
     table = _decoder_json_stat(texte_json)
-    table = table.loc[table.quant_inc.isin(QUINTILES)]
+    table = table.loc[
+        table.quant_inc.isin(QUINTILES) & table.coicop.str.fullmatch(REGEX_GROUPE_HBS)
+    ]
     return (
         table[["quant_inc", "coicop", "valeur"]]
         .rename(columns={"quant_inc": "modalite", "coicop": "poste"})
