@@ -190,6 +190,19 @@ Cas particuliers :
   la méthode** — décidé le 22/08/2026, faute de donnée qui départagerait
   résidence principale et résidences secondaires.
 
+**Renormalisation finale.** Les poids de groupe HBS bruts (`hbs_str_t223`) ne
+somment pas exactement à 1000 ‰ par quintile — chaque quintile est un
+arrondi indépendant de 47 valeurs entières publiées, pas une erreur de
+calcul : QU1 = 993 ‰, QU2 = 992 ‰, QU3 = 993 ‰, QU4 = 988 ‰, QU5 = 981 ‰
+(vérifié le 22/08/2026). `analyse.indice` exige une somme à 1000 ‰ ±
+`TOLERANCE_POUR_MILLE` (0,5 ‰) pour tout poste absent ne passe pas
+inaperçu (section 5.2) ; un écart de plusieurs pour mille par arrondi de
+publication déclencherait la même garde qu'une vraie erreur. Le vecteur
+transposé de chaque modalité est donc mis à l'échelle pour sommer exactement
+à 1000 ‰ après transposition — la transposition étant linéaire et
+conservant la masse par groupe, remettre à l'échelle avant ou après ne
+change pas les parts relatives. Décidé le 22/08/2026.
+
 ### 3.4 Le poste `CP042`, loyers imputés
 
 `CP042` pèse jusqu'à **169 ‰** dans les poids HBS mais **n'existe pas dans

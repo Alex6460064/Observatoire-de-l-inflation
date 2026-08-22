@@ -17,6 +17,11 @@ TOLERANCE_POUR_MILLE = 0.5
 # Seul axe de profil expose en v1 (ADR 0011) -- docs/METHODOLOGIE.md section 7.
 AXE_QUINTILE_REVENU = "quintile_revenu"
 
+# Meme convention que TOTAL_POUR_MILLE dans analyse/indice.py : les poids de
+# profil somment a 1000 pour mille apres renormalisation (docs/METHODOLOGIE.md
+# 3.3).
+TOTAL_POUR_MILLE = 1000.0
+
 QUINTILES = ("QU1", "QU2", "QU3", "QU4", "QU5")
 
 
@@ -109,7 +114,11 @@ def assembler_poids_quintiles(
 
     C'est l'assemblage reel de `data/processed/poids.csv` (ticket #11,
     docs/METHODOLOGIE.md section 7) : un appel a `transposer_poids_hbs` par
-    modalite `QU1`..`QU5`, empiles en table longue.
+    modalite `QU1`..`QU5`, empiles en table longue. Chaque vecteur transpose
+    est renormalise pour sommer exactement a 1000 pour mille -- les poids
+    HBS bruts par quintile ne somment jamais exactement a 1000 (arrondi de
+    publication de 47 valeurs entieres independantes), ce que
+    `analyse.indice` refuserait sinon (docs/METHODOLOGIE.md 3.3).
 
     Args:
         poids_hbs_long: table `modalite, poste, valeur` (sortie de
@@ -146,6 +155,7 @@ def assembler_poids_quintiles(
             .valeur
         )
         transpose = transposer_poids_hbs(vecteur, poids_iw, correspondance)
+        transpose = transpose * (TOTAL_POUR_MILLE / transpose.sum())
         for poste, pm in transpose.items():
             lignes.append(
                 {
