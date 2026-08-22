@@ -65,6 +65,20 @@ def test_transposition_sous_classe_multi_source_repartit_a_parts_egales():
     assert out["CP0732"] + 25.0 == pytest.approx(100.0)
 
 
+def test_transposition_plusieurs_cibles_sans_poids_ipch_repartit_a_parts_egales():
+    # CP042-like generalise (docs/METHODOLOGIE.md 3.3, mise a jour 22/08/2026) :
+    # deux sous-classes cibles, aucune n'a de poids IPCH -> moitie chacune.
+    poids_hbs = pd.Series({"CP042": 169.0})
+    poids_iw = pd.Series({"CP0111": 500.0})  # sans rapport avec CP042
+    table = correspondance([("CP04210", "CP042"), ("CP04220", "CP042")])
+
+    out = transposer_poids_hbs(poids_hbs, poids_iw, table)
+
+    assert out["CP04210"] == pytest.approx(84.5)
+    assert out["CP04220"] == pytest.approx(84.5)
+    assert out.sum() == pytest.approx(169.0)
+
+
 def test_transposition_leve_erreur_si_groupe_absent_de_la_correspondance():
     poids_hbs = pd.Series({"CP999": 10.0})
     poids_iw = pd.Series({"CP1211": 30.0})

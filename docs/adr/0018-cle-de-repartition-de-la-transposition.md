@@ -88,3 +88,12 @@ Deux entrées pour la section « Limites » de `docs/METHODOLOGIE.md` :
 1. incohérence de périmètre poids HBS / prix IPCH, cas le plus lourd : les
    assurances ;
 2. parts égales sur les 41 sous-classes multi-sources, 148 ‰ du poids IPCH.
+
+## Mise à jour du 22/08/2026 — `CP042` n'est pas bijectif
+
+La bijectivité de `CP042` affirmée plus haut ne résiste pas à la lecture directe
+de la table UNSD (ticket #8) : le groupe a **deux** sous-classes cibles
+(`04.2.1` résidence principale, `04.2.2` autres loyers imputés), pas une. Aucune
+des deux n'a de contrepartie IPCH, donc le même problème se pose qu'avec les 41
+sous-classes multi-sources, en miroir. Traité par la même règle : parts égales.
+Détail dans `docs/METHODOLOGIE.md` section 3.3.

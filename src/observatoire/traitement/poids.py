@@ -25,9 +25,11 @@ def transposer_poids_hbs(
     Prorata direct sur les poids d'articles IPCH -- docs/METHODOLOGIE.md 3.3 :
     `w_c = w_g * iw_c / somme(iw_c' issues de g)`. Une sous-classe alimentee
     par plusieurs groupes source repartit son poids IPCH a parts egales entre
-    eux avant le calcul du ratio (seule approximation de la methode). Un
-    groupe dont l'unique sous-classe cible n'a pas de poids IPCH (type
-    `CP042`) lui transmet son poids intact.
+    eux avant le calcul du ratio (seule approximation de la methode, avec son
+    symetrique ci-dessous). Un groupe dont aucune sous-classe cible n'a de
+    poids IPCH (denominateur nul, type `CP042` -- deux cibles, ni l'une ni
+    l'autre couverte par l'IPCH) transmet son poids intact, reparti a parts
+    egales entre ses sous-classes cibles.
 
     Args:
         poids_hbs: poids de groupe HBS ECOICOP v1, en pour mille, une seule
@@ -45,10 +47,9 @@ def transposer_poids_hbs(
 
     Raises:
         ValueError: groupe absent de la correspondance (aucune sous-classe
-            cible), plusieurs sous-classes cibles sans aucun poids IPCH
-            atteignable (repartition ambigue, non documentee), ou masse
-            transposee d'un groupe qui s'ecarte de son poids d'origine au-dela
-            de `TOLERANCE_POUR_MILLE` (poids IPCH invalide, ex. `NaN`).
+            cible), ou masse transposee d'un groupe qui s'ecarte de son poids
+            d'origine au-dela de `TOLERANCE_POUR_MILLE` (poids IPCH invalide,
+            ex. `NaN`).
     """
     resultat: dict[str, float] = {}
 
@@ -72,14 +73,10 @@ def transposer_poids_hbs(
         denominateur = sum(iw_effectifs.values())
 
         if denominateur == 0:
-            if len(enfants) != 1:
-                raise ValueError(
-                    f"Groupe {groupe!r} : aucune de ses {len(enfants)} "
-                    "sous-classes cibles n'a de poids IPCH -- repartition "
-                    "ambigue, cle de repartition non documentee pour ce cas "
-                    "(docs/METHODOLOGIE.md 3.3 ne couvre que le cas bijectif)."
-                )
-            parts = {enfants[0]: w_g}
+            # docs/METHODOLOGIE.md 3.3, cas symetrique du multi-source :
+            # aucune sous-classe cible n'a de poids IPCH, le poids du groupe
+            # traverse intact, reparti a parts egales entre elles.
+            parts = {c: w_g / len(enfants) for c in enfants}
         else:
             parts = {c: w_g * iw_c / denominateur for c, iw_c in iw_effectifs.items()}
 

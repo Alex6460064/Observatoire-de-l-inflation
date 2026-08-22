@@ -176,10 +176,19 @@ Cas particuliers :
 
 - **41 sous-classes 2018 ont plusieurs sources 1999** (148 ‰ du poids IPCH
   France). Aucune source ne dit dans quelle proportion. Leur poids IPCH est
-  réparti **à parts égales** entre leurs sources. **C'est le seul nombre inventé
-  de toute la méthode.** Il est borné à ces 148 ‰ et figure dans les limites.
-- **`CP042`** traverse sans découpage : `04.2` est bijectif dans la
-  correspondance.
+  réparti **à parts égales** entre leurs sources. Il est borné à ces 148 ‰ et
+  figure dans les limites.
+- **Un groupe HBS dont aucune sous-classe cible n'a de poids IPCH** (le
+  dénominateur du prorata est nul) transmet son poids intact à ses sous-classes
+  cibles, réparties **à parts égales** entre elles — généralisation de la règle
+  ci-dessus au cas symétrique. `CP042` (loyers imputés) en est l'exemple :
+  vérifié le 22/08/2026 contre la table UNSD, il a **deux** sous-classes cibles
+  (`04.2.1` résidence principale, `04.2.2` autres loyers imputés), pas une
+  seule comme une lecture rapide de la correspondance le suggérait. Aucune des
+  deux n'a de poids IPCH (section 3.4) : chacune reçoit **la moitié** du poids
+  de `CP042`. **C'est, avec le cas ci-dessus, le seul nombre inventé de toute
+  la méthode** — décidé le 22/08/2026, faute de donnée qui départagerait
+  résidence principale et résidences secondaires.
 
 ### 3.4 Le poste `CP042`, loyers imputés
 
