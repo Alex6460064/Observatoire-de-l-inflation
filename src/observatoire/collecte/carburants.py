@@ -9,10 +9,22 @@ verifie le 23/08/2026 sur 2019 : zip 24,5 Mo -> XML 302 Mo, encodage
 ISO-8859-1).
 
 Ce n'est pas une serie : chaque `<prix>` est un changement de prix date,
-station par station, en milliemes d'euro. Ce module se contente d'extraire
-et de dedupliquer (dernier changement du jour par station) -- la
-propagation en serie quotidienne puis l'agregation mensuelle vivent dans
-`traitement.carburants` (ADR 0008).
+station par station. Ce module se contente d'extraire et de dedupliquer
+(dernier changement du jour par station) -- la propagation en serie
+quotidienne puis l'agregation mensuelle vivent dans `traitement.carburants`
+(ADR 0008).
+
+⚠️ **Le format de `valeur` change de millesime, verifie le 23/08/2026 sur
+les huit archives locales** : millesimes 2019-2021 en millieme d'euro, entier
+sans separateur decimal (`"1328"` = 1,328 €) ; millesimes 2022-2026 deja en
+euros, avec point decimal (`"1.572"` = 1,572 €). Aucun melange des deux
+formats a l'interieur d'un meme millesime (verifie sur l'integralite de
+2019, 2020, 2021, 2022, 2026 : 0 exception sur les formats attendus, hormis
+~0,04 % de valeurs aberrantes du type `"1"`/`"2"` en 2022+, deja incoherentes
+economiquement et negligeables sur une moyenne de dizaines de milliers de
+stations). `_parser_xml` detecte le format par presence d'un point decimal
+dans l'attribut brut, poste par poste, pas par millesime : robuste a un
+changement de format en cours d'annee.
 
 ⚠️ Aucun volume de vente publie : la moyenne est non ponderee par station
 (docs/SOURCES.md). Seuls `Gazole` et `E10` (= SP95-E10) sont retenus,
@@ -59,8 +71,9 @@ def fetch_prix_carburants(annee: int, raw_dir: Path = Path("data/raw")) -> pd.Da
     Returns:
         Table `station_id, carburant, date, valeur` -- une ligne par station,
         carburant (`gazole` ou `sp95_e10`) et jour ayant eu au moins un
-        changement de prix ; `valeur` en euros/litre (le milliemes source est
-        divise par 1000), dernier changement du jour retenu en cas de
+        changement de prix ; `valeur` en euros/litre (convertie depuis le
+        milliemes source si le millesime est encore dans ce format, voir
+        docstring du module), dernier changement du jour retenu en cas de
         plusieurs mises a jour le meme jour.
 
     Raises:
@@ -126,10 +139,14 @@ def _parser_xml(fichier, annee: int) -> pd.DataFrame:
                     if date and valeur_brute:
                         # Dernier changement du jour gagne (ordre document
                         # croissant dans le fichier source, verifie le
-                        # 23/08/2026).
-                        lignes[(station_courante, carburant, date)] = (
-                            float(valeur_brute) / 1000.0
-                        )
+                        # 23/08/2026). Format detecte par valeur : un point
+                        # decimal signale un millesime deja en euros
+                        # (2022+), son absence un millesime en milliemes
+                        # entiers (2019-2021) -- voir docstring du module.
+                        valeur = float(valeur_brute)
+                        if "." not in valeur_brute:
+                            valeur = valeur / 1000.0
+                        lignes[(station_courante, carburant, date)] = valeur
             elif event == "end" and elem.tag == "pdv":
                 elem.clear()
                 station_courante = None

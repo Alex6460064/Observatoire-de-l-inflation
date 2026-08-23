@@ -503,12 +503,24 @@ instantané 0,95 Mo, quotidien 1,1 Mo, annuel 24,7 Mo.
 2024. Huit millésimes 2019→2026 ≈ 2,4 Go de XML.
 
 ⚠️ Ce n'est **pas une série** : chaque `<prix>` est un changement de prix daté,
-station par station, en millièmes d'euro.
+station par station.
 
 ```xml
 <pdv id="1000001" cp="01000" pop="R">
   <prix nom="Gazole" id="1" maj="2019-01-04T10:53:48" valeur="1328"/>
 ```
+
+⚠️ **Le format de `valeur` change de millésime, découvert et vérifié le
+23/08/2026** en comparant les huit archives locales : 2019-2021 en millième
+d'euro, entier sans séparateur décimal (`"1328"` = 1,328 €) ; 2022-2026 déjà
+en euros, avec point décimal (`"1.572"` = 1,572 €). Aucun mélange à
+l'intérieur d'un même millésime (vérifié sur l'intégralité de 2019, 2020,
+2021, 2022, 2026 — seule exception : ~0,04 % de valeurs aberrantes du type
+`"1"`/`"2"` en 2022+, déjà incohérentes économiquement). Un bug de pipeline
+divisait uniformément par 1000, ce qui effondrait `CP072` à ~0,1 % de sa
+valeur réelle sur 2022+ et biaisait fortement l'indice Observatoire à la
+baisse sur cette période — corrigé le 23/08/2026, `collecte.carburants`
+détecte le format par présence d'un point décimal, valeur par valeur.
 
 Construire une moyenne mensuelle nationale impose de propager le dernier prix
 connu de chaque station sur chaque jour, puis d'agréger.

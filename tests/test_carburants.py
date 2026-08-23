@@ -35,10 +35,10 @@ _XML_EXTRAIT = """<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>
 """.encode("ISO-8859-1")
 
 
-def _zip_factice(xml: bytes) -> bytes:
+def _zip_factice(xml: bytes, annee: str = "2019") -> bytes:
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        archive.writestr("PrixCarburants_annuel_2019.xml", xml)
+        archive.writestr(f"PrixCarburants_annuel_{annee}.xml", xml)
     return buffer.getvalue()
 
 
@@ -74,6 +74,31 @@ def test_fetch_convertit_les_milliemes_en_euros(monkeypatch, tmp_path):
     ].iloc[0]
 
     assert ligne["valeur"] == 1.45
+
+
+_XML_EXTRAIT_2022 = """<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>
+<pdv_liste>
+<pdv id="1000001" latitude="4620114" longitude="519791" cp="01000" pop="R">
+  <adresse>596 AVENUE DE TREVOUX</adresse>
+  <ville>SAINT-DENIS</ville>
+  <prix nom="Gazole" id="1" maj="2022-06-01T10:53:48" valeur="1.867"/>
+  <prix nom="E10" id="2" maj="2022-06-01T10:53:48" valeur="1.699"/>
+</pdv>
+</pdv_liste>
+""".encode("ISO-8859-1")
+
+
+def test_fetch_lit_le_format_decimal_2022_sans_diviser_par_1000(monkeypatch, tmp_path):
+    _reponse_factice(monkeypatch, 200, _zip_factice(_XML_EXTRAIT_2022, "2022"))
+
+    out = fetch_prix_carburants(2022, raw_dir=tmp_path)
+    ligne = out[
+        (out["station_id"] == "1000001")
+        & (out["carburant"] == "gazole")
+        & (out["date"] == "2022-06-01")
+    ].iloc[0]
+
+    assert ligne["valeur"] == 1.867
 
 
 def test_fetch_ignore_les_carburants_hors_mix(monkeypatch, tmp_path):
