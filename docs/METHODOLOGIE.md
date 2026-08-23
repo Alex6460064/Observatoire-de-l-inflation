@@ -4,7 +4,7 @@ Ce document dit **ce que l'Observatoire calcule, comment, et avec quoi**. Il est
 contraignant : `CLAUDE.md` interdit de coder une formule qui n'y figure pas, et
 interdit d'y écrire un chiffre sans source dans `docs/SOURCES.md`.
 
-Il consolide les **dix-neuf décisions** de `docs/adr/`. Chaque section renvoie à
+Il consolide les **vingt décisions** de `docs/adr/`. Chaque section renvoie à
 l'ADR qui l'a tranchée ; l'ADR porte les alternatives écartées et le
 raisonnement, ce document porte le résultat.
 
@@ -345,6 +345,13 @@ pas une variante cosmétique de l'IPCH repondéré : il en diffère sur les post
 ont le plus augmenté depuis 2019.
 
 **`CP042` reçoit `CP041`**, ici comme ailleurs (section 3.4).
+
+**Candidat non adopté : `CP071` achat de véhicules.** ADEME Car Labelling
+fournit un prix réel, ouvert, mais aucun historique (ADR 0020) — l'adopter
+supposerait un raccord de sources non validé ici. Archivage trimestriel démarré
+sans intégration à l'indice. `CP11` (restauration/hôtellerie) et `CP12`/`CP13`
+(assurance) restent sur l'IPCH, faute de source indépendante utilisable
+(`docs/SOURCES.md`).
 
 ### 4.3 `CP01` — ce qui est chaîné
 
@@ -705,3 +712,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0017 | table de paramètres de l'indice Observatoire |
 | 0018 | clé de répartition de la transposition |
 | 0019 | source `CP01` : Familles Rurales |
+| 0020 | candidat `CP071` : ADEME Car Labelling, archivage sans adoption |

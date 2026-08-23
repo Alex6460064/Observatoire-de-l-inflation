@@ -1038,6 +1038,88 @@ chiffres HBS contre un travail publié indépendant :
 
 ---
 
+## ADEME Car Labelling — candidat `CP071`, archivage sans historique
+
+Recherche du 23/08/2026 (ADR 0020). `https://www.data.gouv.fr/datasets/ademe-car-labelling`,
+ressource CSV : `https://www.data.gouv.fr/api/1/datasets/r/669a1f00-299f-4c7c-9db2-cd32401e7b25`.
+
+Licence Ouverte (Etalab). CSV **téléchargé et inspecté directement** le
+23/08/2026 : 3604 lignes, encodage UTF-8 avec BOM (confirmé caractère par
+caractère). Colonne `Prix véhicule` (index 51) présente et remplie sur
+**3604/3604 lignes** — échantillon : `RENAULT KANGOO 31000`, `MAZDA MX-30
+38510`, `B.M.W. 540 77588`.
+
+⚠️ **Aucun historique accessible.** Interrogation directe de l'API `data-fair`
+sous-jacente (`https://data.ademe.fr/data-fair/api/v1/datasets/ademe-car-labelling`) :
+`"history": null`. Le fichier est écrasé en place à chaque mise à jour
+(dernière : 14/07/2026). Aucune archive datée trouvée ailleurs (recherche web
+infructueuse sur `carlabelling.ademe.fr`).
+
+⚠️ **Cadence contradictoire selon la source.** La fiche data.gouv.fr annonce
+« 2 fois par an » ; `carlabelling.ademe.fr` annonce une actualisation
+trimestrielle (janvier, avril, juillet, octobre). Non tranché — à confirmer à
+la deuxième capture.
+
+⚠️ **Nature exacte du prix non confirmée.** Le glossaire
+(`carlabelling.ademe.fr/index/glossaire`) ne définit pas le champ `Prix
+véhicule`. Seule mention trouvée : l'UTAC fournit un « prix de vente » en
+amont des retraitements ADEME. TTC, bonus-malus déduit, avant ou après remise
+concessionnaire — non précisé.
+
+**Décision (ADR 0020) : pas d'adoption comme source de `CP071` cette
+session.** La date de référence du projet est `2019-12` (ADR 0009) ; sans
+historique, `CP071` resterait en IPCH pur jusqu'à la première capture —
+même situation que « Point conso » déjà écartée pour `CP01` (ADR 0019),
+qui renvoie le remède (raccord de sources) à une méthodologie non encore
+validée. Archivage trimestriel démarré dès maintenant
+(`collecte.ademe.fetch_ademe_carlabelling`) pour ne pas perdre le millésime
+`2026-Q3`, seul accessible faute d'archive rétroactive.
+
+## Restauration / hôtellerie (`CP11`) — rien trouvé
+
+Recherche du 23/08/2026. Aucune source indépendante et gratuite identifiée :
+
+- Banque de France Webstat (`ICP.M.FR.N.110000.4.INX`) republie l'IPCH
+  officiel — zéro indépendance, sans intérêt pour l'indice Observatoire.
+- MKG / STR / UMIH publient des baromètres mensuels (RevPAR, prix moyen de
+  chambre) — commercial, diffusion PDF régionale, pas d'open data identifié.
+
+`CP11` reste sur l'IPCH. Aucune action de collecte engagée.
+
+## France Assureurs — chiffres citables, pas une source de données
+
+Recherche du 23/08/2026 pour `CP12`/`CP13` (assurance et services divers,
+137 ‰ combiné). `https://www.franceassureurs.fr/actualites/les-donnees-cles-de-lassurance-francaise-en-2024/`,
+PDF `donnees-cles-2024.pdf` (20 Mo).
+
+PDF téléchargé et extrait en texte (`pdftotext -layout`) le 23/08/2026 —
+confirmé, pas seulement cité par un tiers : série annuelle réelle,
+**« Prime moyenne HT »**, 2020-2024 :
+
+```
+Assurance auto, RC 1ère catégorie      149  151  153  156  162  €  (+3,6 %)
+Assurance auto, tous risques/tiers1    243  247  250  257  271  €  (+5,2 %)
+Multirisque habitation (MRH)           258  262  268  279  299  €  (+7,2 %)
+```
+
+⚠️ **Reproduction « strictement interdite »** sans autorisation écrite
+préalable de France Assureurs (mentions légales du site). Une tolérance
+existe pour un usage non lucratif, mais sur accord préalable exprès —
+non obtenu. Régime plus restrictif que celui déjà accepté pour
+NielsenIQ/Circana (ADR 0004, ADR 0019, citation de chiffres publiés en
+`synthese_presse`) : ici c'est le site lui-même qui interdit la
+republication, pas seulement l'absence de série gratuite.
+
+**Décision : pas d'intégration à `data/manual/releves.csv`.** Citable en
+prose dans `docs/METHODOLOGIE.md`, avec attribution, comme commentaire de
+contexte à côté de l'IPCH — pas comme un poste `sources propres` de
+l'indice Observatoire. Écarté du même geste : data.gouv.fr, « Prix de
+l'assurance auto par profil selon les régions françaises » (lesfurets.com,
+Licence Ouverte) — dernière mise à jour 16/08/2017, fréquence de mise à
+jour non respectée signalée sur la fiche elle-même, série non maintenue.
+
+---
+
 ## Régime des licences — vérifié le 21/08/2026
 
 Deux sources de l'indice Observatoire portent la licence `notspecified` sur
