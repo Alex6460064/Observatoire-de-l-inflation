@@ -520,6 +520,30 @@ hypermarché.
 `data.economie.gouv.fr` : seuls les flux quotidien et instantané y sont exposés
 (`prix-carburants-quotidien`, 74 770 enregistrements). **Aucun historique.**
 
+### Mix gazole / essences (ADR 0023) — UFIP/CPDP, vérifié le 23/08/2026
+
+`nom="E10"` dans le XML = SP95-E10, le mix retenu pour représenter
+l'ensemble des essences (`SP95` sans éthanol, `SP98`, `E85` non séparés,
+`data/manual/parametres.csv`). Parts sourcées, dépêche AFP citant le bilan
+2025 de l'Union française des industries pétrolières (Ufip), via le Comité
+professionnel du pétrole (CPDP) :
+
+<https://www.connaissancedesenergies.org/afp/la-consommation-francaise-de-carburants-en-baisse-en-2025-le-diesel-en-recul-mais-toujours-dominant-260115>
+
+Citations exactes, vérifiées mot pour mot le 23/08/2026 :
+
+> les livraisons de gazole ont baissé de 3,4% pour atteindre 32 millions de m3
+
+> La part du gazole dans la consommation française de carburants routiers
+> reste toutefois prépondérante, avec 67,3% à fin 2025
+
+> les livraisons fléchissant de 0,6% par rapport à 2024, avec 47,5 millions
+> de mètres cubes
+
+Soit **67,3 % gazole / 32,7 % essences** (32,0 / 47,5 Mm³). Le communiqué
+UFIP original (`energiesetmobilites.fr`) n'a pas été localisé sous une URL
+stable citable — la dépêche AFP ci-dessus est la source retenue.
+
 ---
 
 ## CRE — tarif réglementé de vente d'électricité (indice 4, `CP045`)
@@ -586,6 +610,26 @@ la section « Régime des licences » en fin de fichier.
 remis sur le marché ; l'IPCH `CP041` mesure le loyer de l'ensemble du parc,
 locataires en place compris. L'écart est une différence de champ, flux contre
 stock. Voir `docs/adr/0014-perimetre-de-l-indice-observatoire-en-v1.md`.
+
+### URLs de téléchargement direct, fichier appartements — vérifiées le 23/08/2026
+
+Un jeu de données data.gouv.fr distinct par millésime (le slug se termine par
+l'année). Chaque URL testée en direct (`curl`, code `200`), voir
+`collecte/carte_des_loyers.py::URLS_APPARTEMENTS` (ADR 0023) :
+
+| millésime | URL |
+|---|---|
+| 2018 | `https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2018/20201203-114600/indicateurs-loyers-appartements.csv` |
+| 2022 | `https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2022/20221216-153948/pred-app-mef-dhup.csv` |
+| 2023 | `https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2023/20240115-134743/pred-app-mef-dhup.csv` |
+| 2024 | `https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2024/20241205-153050/pred-app-mef-dhup.csv` |
+| 2025 | `https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2025/20251211-145010/pred-app-mef-dhup.csv` |
+
+⚠️ **Deux schémas de colonnes.** 2018 : en-têtes non guillemetés, colonne
+commune `INSEE`, ordre différent. 2022-2025 : en-têtes guillemetés, colonne
+commune `INSEE_C`, une colonne `EPCI` de plus. Les deux fichiers sont en
+**encodage latin-1** (vérifié en direct : `é` casse en UTF-8), jamais UTF-8,
+malgré l'absence de mention d'encodage sur la page data.gouv.
 
 ### Pondération du parc locatif communal — ✅ identifiée le 21/08/2026
 

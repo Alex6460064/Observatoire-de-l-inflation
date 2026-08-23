@@ -367,6 +367,81 @@ qu'à partir de la deuxième capture. `CP11` (restauration/hôtellerie) et
 `CP12`/`CP13` (assurance) restent sur l'IPCH, faute de source indépendante
 utilisable (`docs/SOURCES.md`).
 
+⚠️ **`CP01` en repli IPCH temporaire (ADR 0023).** Deux blocages non résolus
+(ADR 0019) : la règle de conversion des périodes hétérogènes de Familles
+Rurales (édition 2021 sur deux ans, éditions suivantes sur un an) en points
+datés n'est pas tranchée, et cinq éditions (2019, 2020, 2023, 2024, 2026)
+n'ont pas été récupérées. `CP01` se comporte donc, pour l'instant, comme
+n'importe quel poste sans source propre : il retombe sur l'IPCH, sans code de
+raccord particulier. Tant que ce repli dure, l'indice Observatoire ne couvre
+que `CP041` + `CP045` + `CP072`, soit **11 à 28 % du panier selon le
+quintile** (111 ‰ en QU5, 278 ‰ en QU1 — total moins les 128-154 ‰ de
+`CP01`), pas les 24-43 % annoncés par l'ADR 0014.
+
+### 4.2 bis Assemblage : du poste HBS 1999 vers les sous-classes COICOP 2018
+
+Les postes `CP01`/`CP041`/`CP042`/`CP045`/`CP072` du tableau ci-dessus sont
+des **groupes HBS 1999** (`data/manual/correspondance_coicop.csv`, colonne
+`coicop_1999`), pas les sous-classes COICOP 2018 sur lesquelles tournent
+`poids.csv` et `prix.csv` des indices 2 et 3 (section 3.2). L'assemblage de
+l'indice 4 part donc du prix IPCH par sous-classe (même source que l'indice
+2) et **remplace, pour chaque groupe à source propre, le prix de toutes ses
+sous-classes cibles par la série du groupe** — même mécanique que la
+substitution `CP042`→`CP041` déjà en production pour les indices 2 et 3
+(`collecte.insee.SOUS_CLASSES_LOYERS_IMPUTES`), généralisée aux groupes
+`CP041`, `CP045`, `CP072` (ADR 0023). Une sous-classe non couverte par un
+groupe à source propre garde son prix IPCH.
+
+**Badge `qualite` des postes en repli IPCH.** Non tranché explicitement par
+un ADR antérieur : ces sous-classes reçoivent `api_ouverte`, au même titre
+que les quatre postes à source propre — l'IPCH Eurostat est réellement une
+API ouverte rejouable, cohérente avec la définition de `CONTEXT.md`. Décidé
+le 23/08/2026 (ADR 0023).
+
+**`CP041` — moyenne nationale pondérée.** Fichier « appartements » seul
+(ADR 0023). Moyenne du `loypredm2` de chaque commune, pondérée par son parc
+locatif privé (résidences principales louées hors HLM loué vide, recensement
+INSEE 2022, section 6) :
+
+```
+loyer_national  =  Σ (loypredm2_c × locatif_prive_c)  /  Σ locatif_prive_c
+                  c                                    c
+```
+
+Un point par millésime (2018, 2022, 2023, 2024, 2025), **ancré au mois de
+janvier** de son année — convention qui reproduit exactement les
+« 47 valeurs mensuelles calculées » de l'ADR 0016 entre `2018-01` et
+`2022-01` (vérifié le 23/08/2026 sur le pipeline). Les mois manquants sont
+comblés par l'interpolation linéaire générique de la section 5.3.
+
+**`CP072` — moyenne quotidienne propagée, puis mix.** Algorithme documenté
+dans `docs/SOURCES.md` (section « Carburants ») : chaque `<prix>` de la
+source est un changement daté, pas une série. Pour chaque station, le
+dernier prix connu est propagé jour par jour ; la moyenne nationale d'un
+jour donné porte sur les seules stations ayant déjà publié un prix ce
+jour-là ou avant ; la moyenne mensuelle est la moyenne des jours du mois.
+Aucune pondération par station, faute de volumes de vente publiés. Deux
+séries ainsi construites, `gazole` et `sp95_e10` (= `E10`, ADR 0023),
+combinées par le mix fixe :
+
+```
+CP072(t)  =  0,673 × gazole(t)  +  0,327 × sp95_e10(t)
+```
+
+Poids sourcés UFIP 2025 (`data/manual/parametres.csv`). `SP95` sans éthanol,
+`SP98`, `E85` et `GPLc` ne sont pas séparés — voir limite 18 ter.
+
+`CP045` : formule déjà en section 6 (barème + profil de consommation).
+
+⚠️ **Pour une future intégration de `CP01`** : contrairement à `CP041`,
+`CP042`, `CP045` et `CP072` qui sont chacun un groupe HBS 1999 unique dans
+`correspondance_coicop.csv`, `CP01` alimentation n'existe pas comme tel dans
+la colonne `coicop_1999` — vérifié le 23/08/2026, elle contient `CP011`
+(produits alimentaires) et `CP012` (boissons non alcoolisées) séparément.
+`assembler_prix_indice_observatoire` (`traitement/observatoire.py`) devra
+recevoir la série Familles Rurales sous les deux clés `CP011` et `CP012`,
+pas une clé `CP01`.
+
 ### 4.3 Raccord de sources : IPCH avant la première capture, série propre après
 
 Règle générale pour toute source propre sans historique rétroactif jusqu'à la
@@ -532,6 +607,26 @@ Ces valeurs vivent dans `data/manual/parametres.csv`, versionné, avec une colon
 expliqués en prose ici. L'interface ne les expose pas et ne permet pas de les
 modifier en v1.
 
+**Valeurs retenues (ADR 0023, décidées le 23/08/2026)** :
+
+- `CP045` — puissance souscrite **6 kVA**, option **Base** : palier et option
+  les plus courants du segment résidentiel (choix Observatoire). Consommation
+  annuelle **4 500 kWh**, sourcée : la CRE cite elle-même « une consommation
+  moyenne de 4,5 MWh par an » pour illustrer l'effet de ses délibérations
+  tarifaires sur le consommateur résidentiel moyen (délibérations 2026-06 et
+  2026-147). La puissance et l'option ne sont **pas** liées à ce chiffre dans
+  le texte CRE — seule la consommation est directement sourcée.
+- `CP072` — mix **gazole 67,3 % / SP95-E10 32,7 %** (bilan UFIP 2025 :
+  32,0 Mm³ de gazole sur 47,5 Mm³ livrés). SP98 et E85 ne sont pas séparés de
+  SP95-E10, faute de source officielle récente qui les distingue clairement —
+  écart de prix de quelques centimes par litre entre gammes d'essence, jugé
+  mineur face à l'écart gazole/essence. À écrire en limite.
+- `CP041` — agrégation sur le fichier **appartements** seul (maisons
+  exclues) : le locatif privé est très majoritairement de l'appartement, et
+  la base recensement ne publie pas de variable appartement/maison propre au
+  locatif — blend aurait ajouté une approximation non sourcée pour un gain
+  marginal. À écrire en limite.
+
 **Conséquence assumée** : un chiffre affiché dépend d'une constante que
 l'interface ne mentionne pas. C'est un recul de transparence par rapport au reste
 du projet, et le premier candidat à révision.
@@ -689,6 +784,23 @@ qui veut savoir d'où sort un pourcentage doit ouvrir ce document (ADR 0017).
 couverture est plafonnée par ses sources les plus courtes. **La courbe sera plus
 courte, et l'interface doit le montrer, pas le masquer** (ADR 0009).
 
+**18 bis. `CP01` retombe temporairement sur l'IPCH (ADR 0023).** L'indice
+Observatoire couvre 11 à 28 % du panier selon le quintile en attendant la
+validation de la règle de conversion des périodes Familles Rurales — pas les
+24-43 % annoncés par l'ADR 0014.
+
+**18 ter. `CP072` ignore la composition fine des essences.** Le mix retenu
+(gazole 67,3 % / SP95-E10 32,7 %, UFIP 2025) traite tout le panier essence
+comme du SP95-E10 : SP98 et E85 ne sont pas séparés faute de source officielle
+récente qui les distingue. L'écart de prix entre gammes d'essence reste de
+l'ordre de quelques centimes par litre, secondaire face à l'écart
+gazole/essence, mais non nul (ADR 0023).
+
+**18 quater. `CP041` ignore les maisons du parc locatif.** Seul le fichier
+« appartements » de la Carte des loyers est retenu ; les maisons louées, plus
+rares en locatif privé, sont exclues faute de variable appartement/maison
+propre au locatif dans le recensement (ADR 0023).
+
 **18. L'indice 3 démarre en 2019-01, pas en 1996.** Sur les 234 postes INSEE
 pondérés, deux (`CP06310`, `CP10102`, exclus du panier ci-dessus) publient une
 série trop récente, mais **d'autres postes réellement inclus dans le panier
@@ -763,3 +875,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0020 | candidat `CP071` : ADEME Car Labelling, archivage sans adoption |
 | 0021 | raccord de sources : IPCH avant la première capture, série propre après |
 | 0022 | comparaison salaires/prix : ajout de `salaire_smb` |
+| 0023 | indice Observatoire en deux temps, `CP01` différé |

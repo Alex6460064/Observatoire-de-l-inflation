@@ -13,6 +13,15 @@ from pathlib import Path
 
 import pandas as pd
 
+from observatoire.collecte.carburants import (
+    MILLESIMES_DISPONIBLES as MILLESIMES_CARBURANTS,
+)
+from observatoire.collecte.carburants import fetch_prix_carburants
+from observatoire.collecte.carte_des_loyers import (
+    MILLESIMES_DISPONIBLES as MILLESIMES_CARTE_DES_LOYERS,
+)
+from observatoire.collecte.carte_des_loyers import fetch_carte_des_loyers
+from observatoire.collecte.cre import fetch_cre_tarif_base
 from observatoire.collecte.dares import (
     chemin_dernier_fichier_salaire_smb,
     lire_salaire_smb,
@@ -27,6 +36,17 @@ from observatoire.collecte.insee import (
     fetch_insee_ipc_officiel,
     fetch_insee_prix_par_sous_classe,
 )
+from observatoire.collecte.recensement_logement import fetch_recensement_logement_2022
+from observatoire.traitement.carburants import (
+    combiner_mix_cp072,
+    construire_prix_carburant,
+)
+from observatoire.traitement.carte_des_loyers import (
+    calculer_locatif_prive,
+    calculer_moyenne_ponderee,
+    construire_points_annuels,
+)
+from observatoire.traitement.cre import calculer_cout_annuel, etendre_mensuel
 from observatoire.traitement.dares import completer_mensuel, nettoyer_salaire_smb
 from observatoire.traitement.eurostat import (
     normaliser_eurostat_ipch_officiel,
@@ -36,6 +56,10 @@ from observatoire.traitement.insee import (
     normaliser_insee_ipc_officiel,
     normaliser_insee_prix_sous_classe,
 )
+from observatoire.traitement.interpolation import (
+    completer_mensuel as completer_mensuel_generique,
+)
+from observatoire.traitement.observatoire import assembler_prix_indice_observatoire
 from observatoire.traitement.poids import (
     assembler_poids_quintiles,
     exclure_postes_du_panier,
@@ -47,6 +71,7 @@ POIDS_CSV = Path("data/processed/poids.csv")
 SALAIRE_CSV = Path("data/processed/salaire_smb.csv")
 META_JSON = Path("data/processed/META.json")
 CORRESPONDANCE_CSV = Path("data/manual/correspondance_coicop.csv")
+PARAMETRES_CSV = Path("data/manual/parametres.csv")
 RAW_DIR = Path("data/raw")
 
 COLONNES_PRIX = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
@@ -121,6 +146,132 @@ def construire_salaire_smb(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
     return completer_mensuel(propre)[COLONNES_SALAIRE]
 
 
+def lire_parametre(parametres: pd.DataFrame, poste: str, parametre: str) -> str:
+    """Lit une valeur de `data/manual/parametres.csv` (ADR 0017, ADR 0023).
+
+    C'est le seul point du pipeline qui lit ce fichier : les constantes
+    `PUISSANCE_RETENUE_KVA`/`CONSOMMATION_ANNUELLE_KWH` (`traitement.cre`) et
+    `PART_GAZOLE`/`PART_SP95_E10` (`traitement.carburants`) restent des
+    valeurs par defaut utilisables hors pipeline (tests, appel direct), mais
+    le pipeline reel passe toujours les valeurs lues ici -- revue de code :
+    sans cet appel, editer le CSV n'avait aucun effet sur `prix.csv`.
+
+    Args:
+        parametres: `pd.read_csv(PARAMETRES_CSV, sep=";")`.
+        poste: colonne `poste` du CSV (ex. `"CP045"`).
+        parametre: colonne `parametre` du CSV (ex. `"puissance_souscrite"`).
+
+    Returns:
+        La colonne `valeur` de la ligne correspondante (chaine, a convertir
+        par l'appelant).
+
+    Raises:
+        ValueError: aucune ligne ne correspond a `(poste, parametre)`.
+    """
+    ligne = parametres.loc[
+        (parametres.poste == poste) & (parametres.parametre == parametre)
+    ]
+    if ligne.empty:
+        raise ValueError(
+            f"Parametre '{parametre}' absent pour le poste '{poste}' dans "
+            f"{PARAMETRES_CSV}. Verifier le fichier (ADR 0017)."
+        )
+    return ligne["valeur"].iloc[0]
+
+
+def construire_serie_cp041(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
+    """Indice Observatoire, groupe `CP041` (loyers reels, ADR 0014, ADR 0023).
+
+    Carte des loyers, fichier appartements, un point par millesime ponder par
+    le parc locatif prive (recensement INSEE 2022), mois manquants combles
+    par interpolation lineaire (docs/METHODOLOGIE.md 4.2 bis).
+    """
+    poids_communal = calculer_locatif_prive(fetch_recensement_logement_2022(raw_dir))
+    valeurs = {
+        millesime: calculer_moyenne_ponderee(
+            fetch_carte_des_loyers(millesime, raw_dir), poids_communal
+        )
+        for millesime in MILLESIMES_CARTE_DES_LOYERS
+    }
+    points = construire_points_annuels(valeurs)
+    return completer_mensuel_generique(points)[COLONNES_PRIX]
+
+
+def construire_serie_cp045(
+    raw_dir: Path = RAW_DIR, derniere_periode: str | None = None
+) -> pd.DataFrame:
+    """Indice Observatoire, groupe `CP045` (energie logement, ADR 0014, ADR 0023).
+
+    Bareme CRE, tarif reglemente option Base, cout annuel du profil retenu
+    (`data/manual/parametres.csv`) etale en escalier sur ses mois de
+    validite (docs/METHODOLOGIE.md 4.2 bis, section 6).
+    """
+    derniere_periode = derniere_periode or datetime.now().strftime("%Y-%m")
+    parametres = pd.read_csv(PARAMETRES_CSV, sep=";")
+    puissance_kva = int(lire_parametre(parametres, "CP045", "puissance_souscrite"))
+    consommation_kwh = float(
+        lire_parametre(parametres, "CP045", "consommation_annuelle")
+    )
+
+    bareme = fetch_cre_tarif_base(raw_dir)
+    cout = calculer_cout_annuel(
+        bareme, puissance_kva=puissance_kva, consommation_annuelle_kwh=consommation_kwh
+    )
+    return etendre_mensuel(cout, derniere_periode)[COLONNES_PRIX]
+
+
+def construire_serie_cp072(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
+    """Indice Observatoire, groupe `CP072` (utilisation du vehicule, ADR 0014,
+    ADR 0023).
+
+    prix-carburants.gouv.fr, archives annuelles 2019-2026, dernier prix connu
+    propage par station puis moyenne mensuelle nationale, mix gazole/SP95-E10
+    fixe (docs/METHODOLOGIE.md 4.2 bis).
+    """
+    parametres = pd.read_csv(PARAMETRES_CSV, sep=";")
+    part_gazole = float(lire_parametre(parametres, "CP072", "part_gazole")) / 100.0
+    part_sp95_e10 = float(lire_parametre(parametres, "CP072", "part_sp95_e10")) / 100.0
+
+    evenements = pd.concat(
+        [fetch_prix_carburants(annee, raw_dir) for annee in MILLESIMES_CARBURANTS],
+        ignore_index=True,
+    )
+    prix_gazole = construire_prix_carburant(evenements, "gazole")
+    prix_sp95_e10 = construire_prix_carburant(evenements, "sp95_e10")
+    return combiner_mix_cp072(
+        prix_gazole, prix_sp95_e10, part_gazole=part_gazole, part_sp95_e10=part_sp95_e10
+    )[COLONNES_PRIX]
+
+
+def construire_prix_indice_observatoire(
+    prix: pd.DataFrame, postes_pondere: list[str], raw_dir: Path = RAW_DIR
+) -> pd.DataFrame:
+    """Assemble la table de prix de l'indice 4 (`source="observatoire"`).
+
+    Repli IPCH (source Eurostat, meme que l'indice 2) pour toute sous-classe
+    non couverte par une source propre ; `CP042` recoit la meme serie que
+    `CP041` (ADR 0005). `CP01` reste en repli IPCH pur -- pas de cle `CP011`
+    ni `CP012` ici (ADR 0023, METHODOLOGIE 4.2 bis).
+    """
+    correspondance = pd.read_csv(CORRESPONDANCE_CSV)
+    prix_ipch_souscl = prix.loc[
+        (prix.source == "eurostat") & (prix.poste.isin(postes_pondere))
+    ]
+
+    serie_cp041 = construire_serie_cp041(raw_dir)
+    series_propres = {
+        "CP041": serie_cp041,
+        "CP042": serie_cp041,
+        "CP045": construire_serie_cp045(raw_dir),
+        "CP072": construire_serie_cp072(raw_dir),
+    }
+
+    assemble = assembler_prix_indice_observatoire(
+        prix_ipch_souscl, correspondance, series_propres
+    )
+    return assemble.assign(source="observatoire")[COLONNES_PRIX]
+
+
 def ecrire_meta(chemin: Path, date_collecte: date) -> None:
     chemin.parent.mkdir(parents=True, exist_ok=True)
     chemin.write_text(
@@ -146,6 +297,13 @@ def main() -> None:
     )
     sans_historique = sorted(set(sans_historique_insee) | set(sans_historique_eurostat))
     poids = exclure_postes_du_panier(poids, sans_historique)
+    # Recalcule apres exclusion : la liste d'avant contient encore les
+    # postes sans historique, que l'indice 4 ne doit pas assembler non plus
+    # (revue de code, meme panier commun que les indices 2 et 3).
+    postes_pondere = postes_avec_poids_non_nul(poids)
+
+    prix_observatoire = construire_prix_indice_observatoire(prix, postes_pondere)
+    prix = pd.concat([prix, prix_observatoire], ignore_index=True)
 
     salaire_smb = construire_salaire_smb()
 

@@ -4,14 +4,15 @@ Ne fait aucun appel reseau : elle lit `data/processed/` et recalcule en direct
 ce qui depend des choix de l'utilisateur (ADR 0008).
 
 Cinq courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
-`2019-12 = 100` codee en dur (ADR 0009) ; `ipch_repondere` (indice 2) et
-`ipc_repondere` (indice 3), recalculees en direct a chaque changement de
-quintile via un selecteur Streamlit partage -- meme panier pour les deux
-(panier commun, docs/METHODOLOGIE.md section 3.3), seule la repondering est
-dynamique (docs/METHODOLOGIE.md section 7), `rebaser`/`indice` de
-`analyse/indice.py` sont reutilises tels quels ; `salaire_smb`, salaire
-nominal Dares superpose aux quatre indices de prix, hors du cadre des cinq
-indices de l'ADR 0002 -- pas de prix, pas de poids HBS (ADR 0022).
+`2019-12 = 100` codee en dur (ADR 0009) ; `ipch_repondere` (indice 2),
+`ipc_repondere` (indice 3) et `indice_observatoire` (indice 4, `CP01` en
+repli IPCH temporaire -- ADR 0023), recalculees en direct a chaque
+changement de quintile via un selecteur Streamlit partage -- meme panier
+pour les trois (panier commun, docs/METHODOLOGIE.md section 3.3), seule la
+repondering est dynamique (docs/METHODOLOGIE.md section 7), `rebaser`/
+`indice` de `analyse/indice.py` sont reutilises tels quels ; `salaire_smb`,
+salaire nominal Dares superpose aux cinq indices de prix, hors du cadre des
+cinq indices de l'ADR 0002 -- pas de prix, pas de poids HBS (ADR 0022).
 """
 
 import json
@@ -96,9 +97,17 @@ def _calculer_indice_repondere(
     la source de prix (`insee` ou `eurostat`) change.
 
     La courbe ne demarre qu'a la premiere periode ou tous les postes du
-    panier ont une valeur (limite 18, meme principe que la limite 17) :
-    `indice` refuse tout point agrege sur un panier partiel plutot que de
-    l'afficher silencieusement.
+    panier ont une valeur, et s'arrete a la derniere periode ou c'est encore
+    le cas (limite 18, meme principe que la limite 17) : `indice` refuse
+    tout point agrege sur un panier partiel plutot que de l'afficher
+    silencieusement. La borne de fin importe pour l'indice 4 : `CP041`
+    (Carte des loyers, publication annuelle) s'arrete plus tot que `CP045`/
+    `CP072` (barème/quotidien, jusqu'a aujourd'hui) -- sans elle, `indice`
+    leverait au premier mois ou seul `CP041` manque (ADR 0023).
+
+    `interpole` vaut `True` sur une periode des qu'au moins un poste pondere
+    y est interpole (ADR 0015) -- pour l'indice 4, la plupart des mois de
+    `CP041` le sont (METHODOLOGIE section 5.3).
     """
     vecteur = (
         poids.loc[
@@ -111,17 +120,21 @@ def _calculer_indice_repondere(
     )
     brut = prix.loc[(prix.source == source) & (prix.poste.isin(vecteur.index))]
     debut = brut.groupby("poste").periode.min().max()
-    brut = brut.loc[brut.periode >= debut]
+    fin = brut.groupby("poste").periode.max().min()
+    brut = brut.loc[(brut.periode >= debut) & (brut.periode <= fin)]
 
     rebase = rebaser(brut, REFERENCE)
     valeurs = indice(rebase, vecteur)
+    interpole_par_periode = (
+        rebase.groupby("periode")["interpole"].any().reindex(valeurs.index)
+    )
 
     return pd.DataFrame(
         {
             "serie": serie,
             "periode": valeurs.index,
             "valeur": valeurs.to_numpy(),
-            "interpole": False,
+            "interpole": interpole_par_periode.to_numpy(),
         }
     )
 
@@ -141,6 +154,23 @@ def calculer_indice_3(
     """Indice 3 (IPC repondere) : prix INSEE par sous-classe COICOP 2018."""
     return _calculer_indice_repondere(
         prix, poids, modalite, source="insee", serie="ipc_repondere"
+    )
+
+
+def calculer_indice_4(
+    prix: pd.DataFrame, poids: pd.DataFrame, modalite: str
+) -> pd.DataFrame:
+    """Indice 4 (indice Observatoire) : prix assembles dans le pipeline,
+    source `observatoire` (ADR 0014, ADR 0023, docs/METHODOLOGIE.md 4.2 bis).
+
+    `CP01` reste en repli IPCH temporaire (ADR 0023) : la courbe couvre
+    11 a 28 % du panier selon le quintile, pas les 24-43 % vises a terme.
+    Meme panier que les indices 2 et 3 (poids identiques) ; la courbe
+    demarre a la premiere periode ou `CP041`/`CP045`/`CP072` sont tous les
+    trois disponibles, en pratique `CP072` (2019, ADR 0014).
+    """
+    return _calculer_indice_repondere(
+        prix, poids, modalite, source="observatoire", serie="indice_observatoire"
     )
 
 
@@ -164,6 +194,7 @@ def main() -> None:
     rebases.append(rebaser_indice(salaire_smb, SALAIRE_SMB))
     rebases.append(calculer_indice_2(prix, poids, modalite))
     rebases.append(calculer_indice_3(prix, poids, modalite))
+    rebases.append(calculer_indice_4(prix, poids, modalite))
 
     col_graphe, col_chiffres = st.columns([3, 1])
 
@@ -203,9 +234,9 @@ def main() -> None:
 
     st.subheader("Documentation")
     st.markdown(
-        "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les 18 limites\n"
+        "- `docs/METHODOLOGIE.md` — formules, hypotheses, et les limites\n"
         "- `docs/SOURCES.md` — sources retenues et ecartees\n"
-        "- `docs/adr/` — les 19 decisions, avec leurs alternatives ecartees\n"
+        "- `docs/adr/` — les 23 decisions, avec leurs alternatives ecartees\n"
         "- `CONTEXT.md` — glossaire contraignant, termes bannis compris"
     )
 
