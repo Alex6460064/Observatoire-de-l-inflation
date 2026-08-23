@@ -79,6 +79,27 @@ inspectant la réponse (pas de codelist consultée séparément) :
 | `MENAGES_IPC` | `ENSEMBLE` | tous ménages (`URBAIN` = ménages urbains ouvrier/employé, écarté) |
 | `REF_AREA` | `FE` | France entière (`FM` = France métropolitaine, écarté) |
 
+### Clé vérifiée pour l'indice 3 — prix INSEE par sous-classe COICOP2018
+
+Testé le 22/08/2026, un appel par code, aucun wildcard possible sur la
+dimension `COICOP2018` :
+
+```
+GET https://api.insee.fr/series/BDM/V1/data/IPC-2025/M.IPC.SO.<code>.SO.INDICE.ENSEMBLE.FE.SO.BRUT.2025.FALSE
+```
+
+| `<code>` testé | niveau | résultat |
+|---|---|---|
+| `011` | groupe (3 chiffres) | `IDBANK 011814676`, série unique, "01.1 Produits alimentaires" |
+| `01111` | sous-classe (5 chiffres) | `IDBANK 011814691`, série unique, "01.1.1.1 Céréales (ND)" |
+
+Chaque code renvoie exactement une série (`<Series>` unique dans la réponse) :
+pas de wildcard sur cette dimension, donc **un appel par sous-classe**. La
+transposition de poids cible le niveau sous-classe (`prc_hicp_iw`, 293 codes,
+section suivante) : collecter l'indice 3 demande donc jusqu'à **293 appels**,
+contre une limite de **30 appels/minute/IP** — prévoir un espacement dans la
+collecte, pas un appel massif en boucle serrée.
+
 ---
 
 ## Eurostat — prix (indices 1, 2 et 4)
@@ -114,6 +135,46 @@ Valeurs relevées le 21/08/2026, France, base 2015=100 :
 | `CP041` loyers réels | 100,95 | 111,22 | +10,2 % |
 | `CP045` énergie logement | 113,39 | 165,12 | +45,6 % |
 
+### Couverture par sous-classe COICOP 2018 — vérifiée le 23/08/2026 (ticket 01, indice 2)
+
+Requête multi-codes vérifiée en direct : `coicop18` accepte plusieurs codes en
+répétant le paramètre dans l'URL (`coicop18=CP01111&coicop18=CP01112&...`),
+pas de syntaxe `+`-joint (testée, renvoie 0 résultat). Contrairement à l'API
+BDM INSEE, les codes doivent porter le préfixe `CP` (`CP01111`, pas `01111`)
+— un appel avec code nu renvoie une dimension vide. Un seul appel pour les
+296 postes de `poids.csv` fonctionne (URL de 5172 caractères, HTTP 200).
+
+Sur les 296 postes, comparé à `sinceTimePeriod=2019-12` (REFERENCE, ADR
+0009) :
+
+- **62 postes** n'ont pas d'historique complet côté INSEE à REFERENCE (52
+  totalement absents de l'API BDM, 10 dont la série démarre après
+  2019-12) — vérifié poste par poste en direct le 23/08/2026.
+- **66 postes** n'ont pas d'historique complet côté Eurostat
+  `prc_hicp_minr` à REFERENCE (7 codes sans aucune série, 47 codes
+  structurellement déclarés par l'API mais sans observation dans la
+  fenêtre demandée, 12 dont la série démarre après 2019-12).
+- Les 62 trous INSEE sont un **sous-ensemble strict** des 66 trous
+  Eurostat. Quatre postes supplémentaires manquent seulement côté
+  Eurostat : `CP04210` et `CP04220` (loyers imputés, voir ci-dessous),
+  `CP06133` (démarre 2020-01, un mois après REFERENCE), `CP09470`
+  (Eurostat n'a que 8 observations, 2025-12 → 2026-07 ; INSEE a
+  l'historique complet pour ce poste).
+- **CP042 (loyers imputés, commit `f348f9e`)** : les deux sous-classes
+  cibles `CP04210` et `CP04220` sont confirmées absentes de
+  `prc_hicp_minr` — cohérent avec l'exclusion structurelle des loyers
+  imputés du champ HICP, et avec l'absence déjà documentée côté INSEE
+  (substitution par le groupe `041`, voir
+  `src/observatoire/collecte/insee.py`).
+
+⚠️ Cette vérification a mis en évidence que `data/processed/prix.csv`
+local était **périmé** au moment du contrôle (généré avant la dernière
+renormalisation de `poids.csv`, commit `859b2d4`) : deux postes marqués
+absents dans ce fichier (`CP09470`, `CP09800`) ont en réalité un
+historique complet en direct sur l'API INSEE. Les chiffres ci-dessus
+viennent d'appels API réels, pas de `prix.csv` — mais le pipeline doit
+être rejoué avant de considérer `prix.csv` à jour pour l'indice 3.
+
 ---
 
 ## Eurostat HBS — poids de profil
@@ -131,6 +192,24 @@ Enquête budget des familles, **quinquennale, dernière vague 2020**. Unité `PM
 
 **Ce sont des tables marginales. Aucun croisement n'est publié.** Voir
 `docs/adr/0006-un-axe-de-profil-officiel-puis-ajustement-declare.md`.
+
+### Requête vérifiée — `hbs_str_t223`, axe quintile
+
+Testé le 22/08/2026 :
+
+```
+GET https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/hbs_str_t223?format=JSON&geo=FR&time=2020&unit=PM
+```
+
+`200`, JSON-stat. Dimension `coicop` : 150 codes en nomenclature **ECOICOP v1**
+(`CP01` à `CP127`, groupes et sous-niveaux mélangés — cohérent avec la mise en
+garde plus bas sur la transposition). Dimension `quant_inc` : `QU1` à `QU5`
+plus `UNK`, **les cinq quintiles arrivent dans le même appel**, pas un par
+modalité.
+
+⚠️ Chaque valeur porte `"status": "e"` (*estimated*) sur l'intégralité des
+points FR — cohérent avec le mécanisme documenté plus bas (vague 2020 FR = 2015
+reconverti par coefficient IPCH, jamais une collecte 2020).
 
 ### ⚠️ La « vague 2020 » française n'est pas une collecte 2020
 
