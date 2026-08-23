@@ -67,9 +67,13 @@ def fetch_ademe_carlabelling(
 
     Raises:
         requests.RequestException: erreur reseau ou timeout.
-        ValueError: code HTTP different de 200, CSV illisible, ou colonne
-            attendue absente (le schema ADEME a pu changer -- verifier contre
-            docs/SOURCES.md avant de corriger silencieusement).
+        FileExistsError: un fichier existe deja pour `date_extraction` --
+            la source ecrase son fichier en place (ADR 0020), un second appel
+            le meme jour ecraserait un millesime deja capture.
+        ValueError: code HTTP different de 200, CSV illisible, colonne
+            attendue absente, ou valeur de `prix_vehicule` non convertible
+            (le schema ADEME a pu changer -- verifier contre docs/SOURCES.md
+            avant de corriger silencieusement).
     """
     date_extraction = date_extraction or dt.date.today()
 
@@ -88,7 +92,15 @@ def fetch_ademe_carlabelling(
 
     raw_dir.mkdir(parents=True, exist_ok=True)
     nom_fichier = f"ademe_carlabelling_{date_extraction.isoformat()}.csv"
-    (raw_dir / nom_fichier).write_bytes(reponse.content)
+    chemin_fichier = raw_dir / nom_fichier
+    if chemin_fichier.exists():
+        raise FileExistsError(
+            f"{chemin_fichier} existe deja. La source ecrase son fichier en "
+            "place (ADR 0020) : un second appel le meme jour ecraserait un "
+            "millesime deja capture sans laisser de trace. Supprimer le "
+            "fichier a la main si le re-telechargement est volontaire."
+        )
+    chemin_fichier.write_bytes(reponse.content)
 
     return _parser_csv(reponse.content, date_extraction)
 
@@ -107,7 +119,19 @@ def _parser_csv(contenu: bytes, date_extraction: dt.date) -> pd.DataFrame:
         )
 
     table = table[list(COLONNES_RETENUES)].rename(columns=COLONNES_RETENUES)
-    table["prix_vehicule"] = pd.to_numeric(table["prix_vehicule"], errors="coerce")
+
+    prix_brut = table["prix_vehicule"]
+    prix_converti = pd.to_numeric(prix_brut, errors="coerce")
+    prix_non_vide = prix_brut.notna() & (prix_brut.str.strip() != "")
+    non_convertible = prix_non_vide & prix_converti.isna()
+    if non_convertible.any():
+        exemples = prix_brut[non_convertible].head(5).tolist()
+        raise ValueError(
+            f"{non_convertible.sum()} valeurs de 'Prix vehicule' non numeriques "
+            f"apres nettoyage (exemples : {exemples}). Le schema a peut-etre "
+            "change, verifier docs/SOURCES.md avant de corriger silencieusement."
+        )
+    table["prix_vehicule"] = prix_converti
     table["date_extraction"] = date_extraction.isoformat()
 
     return table.reset_index(drop=True)

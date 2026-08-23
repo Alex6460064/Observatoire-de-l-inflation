@@ -4,7 +4,7 @@ Ce document dit **ce que l'Observatoire calcule, comment, et avec quoi**. Il est
 contraignant : `CLAUDE.md` interdit de coder une formule qui n'y figure pas, et
 interdit d'y écrire un chiffre sans source dans `docs/SOURCES.md`.
 
-Il consolide les **vingt décisions** de `docs/adr/`. Chaque section renvoie à
+Il consolide les **vingt-et-une décisions** de `docs/adr/`. Chaque section renvoie à
 l'ADR qui l'a tranchée ; l'ADR porte les alternatives écartées et le
 raisonnement, ce document porte le résultat.
 
@@ -347,13 +347,44 @@ ont le plus augmenté depuis 2019.
 **`CP042` reçoit `CP041`**, ici comme ailleurs (section 3.4).
 
 **Candidat non adopté : `CP071` achat de véhicules.** ADEME Car Labelling
-fournit un prix réel, ouvert, mais aucun historique (ADR 0020) — l'adopter
-supposerait un raccord de sources non validé ici. Archivage trimestriel démarré
-sans intégration à l'indice. `CP11` (restauration/hôtellerie) et `CP12`/`CP13`
-(assurance) restent sur l'IPCH, faute de source indépendante utilisable
-(`docs/SOURCES.md`).
+fournit un prix réel, ouvert, mais aucun historique (ADR 0020). Archivage
+trimestriel démarré (première capture 23/08/2026) sans intégration à l'indice
+— la règle de raccord ci-dessous (4.3) est validée mais ne peut s'appliquer
+qu'à partir de la deuxième capture. `CP11` (restauration/hôtellerie) et
+`CP12`/`CP13` (assurance) restent sur l'IPCH, faute de source indépendante
+utilisable (`docs/SOURCES.md`).
 
-### 4.3 `CP01` — ce qui est chaîné
+### 4.3 Raccord de sources : IPCH avant la première capture, série propre après
+
+Règle générale pour toute source propre sans historique rétroactif jusqu'à la
+référence `2019-12` — cas de `CP071` aujourd'hui, réutilisable pour un futur
+candidat dans la même situation (ADR 0021).
+
+**Avant la première capture `t₁` : IPCH pur**, le repli par défaut déjà en
+vigueur (4.2). **À partir de `t₁` : le niveau continue depuis `IPCH(t₁)`, puis
+chaîne sur le ratio de la source propre entre captures successives** :
+
+```
+I(t₁)  =  I_IPCH(t₁)
+
+I(t_k) =  I(t_{k-1})  ×  P_source(t_k) / P_source(t_{k-1})     pour k ≥ 2
+```
+
+Le ratio, jamais le niveau brut : la valeur absolue d'une source propre n'est
+pas comparable au niveau IPCH (champ, pondération, univers différents), mais
+son évolution période à période mesure la même chose d'une capture à l'autre.
+**Entre deux captures, interpolation linéaire** (règle 5.3, ADR 0015),
+marquée `interpole`.
+
+**Conséquence mécanique** : un ratio suppose deux points. Aucun poste sous ce
+régime ne peut entrer dans `poids.csv`/`prix.csv` avant sa deuxième capture.
+
+⚠️ **Formule validée sur sa forme, pas sur un résultat chiffré** : une seule
+capture `CP071` existe au 23/08/2026, aucun ratio n'est encore calculable
+pour la vérifier. À confronter aux chiffres dès la deuxième capture (ADR
+0021).
+
+### 4.4 `CP01` — ce qui est chaîné
 
 Source retenue : Familles Rurales, Observatoire des prix de grande consommation,
 20 éditions, protocole publié — 4 collectes par an (février, avril, juin,
@@ -713,3 +744,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0018 | clé de répartition de la transposition |
 | 0019 | source `CP01` : Familles Rurales |
 | 0020 | candidat `CP071` : ADEME Car Labelling, archivage sans adoption |
+| 0021 | raccord de sources : IPCH avant la première capture, série propre après |

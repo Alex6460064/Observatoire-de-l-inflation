@@ -92,3 +92,32 @@ def test_fetch_leve_value_error_si_colonne_prix_absente(monkeypatch, tmp_path):
         raised = True
 
     assert raised
+
+
+def test_fetch_leve_file_exists_error_si_millesime_deja_capture(monkeypatch, tmp_path):
+    _reponse_factice(monkeypatch, 200, _CSV_EXTRAIT)
+    date_extraction = dt.date(2026, 8, 23)
+    fetch_ademe_carlabelling(raw_dir=tmp_path, date_extraction=date_extraction)
+
+    try:
+        fetch_ademe_carlabelling(raw_dir=tmp_path, date_extraction=date_extraction)
+        raised = False
+    except FileExistsError:
+        raised = True
+
+    assert raised
+
+
+def test_fetch_leve_value_error_si_prix_non_convertible(monkeypatch, tmp_path):
+    csv_prix_corrompu = (
+        "﻿Marque;Modèle;Energie;Prix véhicule\nRENAULT;KANGOO;Diesel;31 000 EUR\n"
+    ).encode()
+    _reponse_factice(monkeypatch, 200, csv_prix_corrompu)
+
+    try:
+        fetch_ademe_carlabelling(raw_dir=tmp_path, date_extraction=dt.date(2026, 8, 23))
+        raised = False
+    except ValueError:
+        raised = True
+
+    assert raised

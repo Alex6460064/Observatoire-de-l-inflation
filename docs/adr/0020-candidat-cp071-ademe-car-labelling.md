@@ -75,12 +75,14 @@ qu'à une Ferrari — aucun volume de vente n'est publié dans ce jeu de donnée
 Même défaut, déjà documenté pour `CP072` (limite 10 de `docs/METHODOLOGIE.md`,
 ADR 0014) : *« L'INSEE, lui, pondère. »*
 
-**La nature exacte de `Prix véhicule` n'est pas confirmée.** Le glossaire
-ADEME ne définit pas ce champ ; la seule mention trouvée dit que l'UTAC
-fournit un « prix de vente » en amont, sans préciser TTC, bonus-malus déduit,
-ou prix catalogue avant remise concessionnaire. `# TODO: à vérifier avant tout
-calcul d'indice — à confronter au « lexique des données » (fichier Word) que
-la fiche data.gouv.fr référence sans le donner en ligne.`
+**La nature exacte de `Prix véhicule` n'est pas confirmée — le lexique
+officiel ne tranche pas non plus.** Le glossaire ADEME ne définit pas ce
+champ. Le « lexique des données » (docx référencé sur la fiche data.gouv.fr,
+téléchargé et lu le 23/08/2026) définit `Prix véhicule` par la seule mention
+« en euros (si disponible) » : aucune précision TTC/HT, bonus-malus déduit,
+avant/après remise concessionnaire. `# TODO: nature du prix non confirmable
+par la documentation ADEME elle-même — limite méthodologique à documenter
+dans docs/METHODOLOGIE.md le jour de l'adoption, pas à deviner.`
 
 **Cadence réelle non confirmée.** La fiche annonce une mise à jour « 2 fois
 par an » ; le site `carlabelling.ademe.fr` annonce une actualisation
@@ -93,7 +95,10 @@ comparaison directe des dates de mise à jour observées.
 1. La règle de raccord de sources elle-même (IPCH avant la première capture,
    série propre après) — proposée nulle part encore, à valider dans
    `docs/METHODOLOGIE.md` avant d'être codée.
-2. La nature exacte du champ `Prix véhicule`.
+2. La nature exacte du champ `Prix véhicule` — non confirmable par la
+   documentation ADEME (lexique consulté le 23/08/2026, ne précise rien de
+   plus qu'« en euros »). À traiter comme limite documentée, pas comme
+   question rouverte à chaque session.
 3. La cadence réelle de mise à jour de la source.
 4. Le retraitement éventuel de l'hétérogénéité de gamme (une moyenne simple
    sur 3604 versions n'est pas un panier).

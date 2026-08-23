@@ -1060,11 +1060,17 @@ infructueuse sur `carlabelling.ademe.fr`).
 trimestrielle (janvier, avril, juillet, octobre). Non tranché — à confirmer à
 la deuxième capture.
 
-⚠️ **Nature exacte du prix non confirmée.** Le glossaire
-(`carlabelling.ademe.fr/index/glossaire`) ne définit pas le champ `Prix
-véhicule`. Seule mention trouvée : l'UTAC fournit un « prix de vente » en
-amont des retraitements ADEME. TTC, bonus-malus déduit, avant ou après remise
-concessionnaire — non précisé.
+⚠️ **Nature exacte du prix non confirmée — même après consultation du
+lexique officiel.** Le glossaire (`carlabelling.ademe.fr/index/glossaire`) ne
+définit pas le champ `Prix véhicule`. Le « lexique des données » référencé sur
+la fiche data.gouv.fr (`ADEME - Car Labelling - Lexique des données -
+2021-03.docx`, consulté le 23/08/2026) a été téléchargé et son texte extrait
+directement du XML — il définit `Prix véhicule` par la seule mention
+« en euros (si disponible) ». Aucune précision TTC/HT, bonus-malus déduit ou
+non, avant/après remise concessionnaire. La source primaire censée trancher
+ne tranche pas : `# TODO: nature du prix non confirmable par la documentation
+ADEME elle-même — bloquant pour tout calcul d'indice, à traiter comme limite
+méthodologique documentée plutôt qu'à deviner.`
 
 **Décision (ADR 0020) : pas d'adoption comme source de `CP071` cette
 session.** La date de référence du projet est `2019-12` (ADR 0009) ; sans

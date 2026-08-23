@@ -6,6 +6,14 @@
 data/raw/*
 !data/raw/.gitkeep
 
+# Exception : ADEME Car Labelling (candidat CP071, ADR 0020). L'API expose
+# "history": null -- fichier ecrase en place a chaque mise a jour, aucune
+# archive datee recuperable ailleurs. Casse donc l'invariant ci-dessus
+# ("tout doit etre re-telechargeable") deliberement : sans ce versionnage,
+# chaque millesime perdu est irremplacable, pas juste un re-telechargement
+# a refaire.
+!data/raw/ademe_carlabelling_*.csv
+
 # data/processed/ EST versionné (ADR 0008) : le CSV rend visible en revue git
 # qu'une valeur publiée a changé. Ne pas ajouter d'exclusion ici.
 
