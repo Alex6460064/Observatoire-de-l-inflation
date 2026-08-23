@@ -823,6 +823,34 @@ première période où les 232 postes restants ont tous une valeur est `2019-01`
 n'a donc que 91 points, contre 367 pour l'IPC officiel et l'IPCH. Même
 principe que la limite 17 : **la courbe est courte, l'interface le montre**.
 
+**19. `CP08392` : INSEE et Eurostat divergent de signe opposé sur le même code.**
+Poids faible (4-5 ‰), mais cas illustratif du risque structurel à mélanger
+deux sources de prix pour un même code COICOP 2018 — vérifié en direct le
+23/08/2026 sur les deux API :
+
+| source | `2019-12` | `2025-01` | évolution |
+|---|---|---|---|
+| INSEE | 131,65 | 98,21 | **-25,4 %** |
+| Eurostat | 109,63 | 127,40 | **+16,2 %** |
+
+`CP08392` = *« Subscriptions to audiovisual streaming services and rental of
+audiovisual content »* (abonnements streaming vidéo type Netflix). Les deux
+valeurs matchent exactement les API sources — **ce n'est pas un bug du
+pipeline**, contrairement au bug `CP072` de la section 4.2 bis. Piste non
+vérifiée : la série INSEE remonte à 1996 (≈92 en base courante), donc
+vraisemblablement chaînée depuis une catégorie antérieure (location de
+vidéos/DVD, en repli continu sur deux décennies) reclassée sous ce code au
+fil des révisions de nomenclature — ce qui traînerait une tendance baissière
+historique pas forcément représentative du prix streaming pur sur la
+période récente. Eurostat, sur une série FR base 2015, montre une hausse
+cohérente avec les hausses de prix Netflix/Disney+ documentées 2022-2025.
+`# TODO: donnée manquante — à vérifier avec Alexandre` : aucune source
+publiée ne confirme ce chaînage côté INSEE, l'hypothèse n'est pas écrite
+comme fait ailleurs dans ce document. N'affecte pas indice 4 au niveau
+global vu le poids, mais illustre pourquoi comparer indice 2 (Eurostat) et
+indice 3 (INSEE) poste par poste peut donner des écarts qui ne mesurent rien
+d'économique.
+
 ---
 
 ## 9. Traçabilité et obligations
