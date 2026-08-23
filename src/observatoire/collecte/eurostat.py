@@ -1,5 +1,6 @@
-"""Collecte des donnees Eurostat : IPCH officiel (indice 1) et poids de
-profil pour la transposition HBS -> COICOP 2018 (indice 3, ADR 0018).
+"""Collecte des donnees Eurostat : IPCH officiel (indice 1), prix par
+sous-classe COICOP 2018 (indice 2, ADR 0018) et poids de profil pour la
+transposition HBS -> COICOP 2018 (indices 2 et 3, ADR 0018).
 
 Source : docs/SOURCES.md, sections "Eurostat -- prix (indices 1, 2 et 4)" et
 "Eurostat HBS -- poids de profil (indices 2, 3 et 4)".
@@ -17,12 +18,23 @@ Requetes verifiees en interrogeant les API en direct le 22/08/2026 :
   filtrer sur le format `CP` + 5 chiffres isole les 293 sous-classes du piege
   documente (codes classe a 6 caracteres, codes agregats speciaux comme
   `FOOD_NP` qui tombent aussi a 7 caracteres sans etre des sous-classes).
+
+Requete verifiee en direct le 23/08/2026 (ticket 01, indice 2) :
+- `prc_hicp_minr` par sous-classe : contrairement a l'API BDM INSEE (un
+  appel par code), accepte plusieurs codes `coicop18` en un seul appel en
+  repetant le parametre dans l'URL (`coicop18=CP01111&coicop18=CP01112&...`
+  -- pas de syntaxe `+`-jointe, testee, renvoie 0 resultat). Les codes
+  gardent leur prefixe `CP` (`CP01111`), contrairement a l'INSEE qui veut le
+  code nu. Un seul appel pour les 296 postes de `poids.csv` fonctionne (URL
+  de 5172 caracteres, HTTP 200). Voir docs/SOURCES.md pour la couverture
+  (66 postes sans historique complet a REFERENCE).
 """
 
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
@@ -153,7 +165,9 @@ def _parser_json_stat(texte_json: str) -> pd.DataFrame:
     return pd.DataFrame(lignes).sort_values("periode").reset_index(drop=True)
 
 
-def _get_eurostat_json(url: str, params: dict, raw_dir: Path, nom_fichier: str) -> str:
+def _get_eurostat_json(
+    url: str, params: dict | list[tuple[str, str]], raw_dir: Path, nom_fichier: str
+) -> str:
     """Appelle un endpoint Eurostat, sauvegarde le JSON brut, renvoie le texte."""
     try:
         reponse = requests.get(url, params=params, timeout=TIMEOUT_SECONDES)
@@ -215,6 +229,63 @@ def _decoder_json_stat(texte_json: str) -> pd.DataFrame:
         lignes.append(ligne)
 
     return pd.DataFrame(lignes)
+
+
+def fetch_eurostat_prix_par_sous_classe(
+    postes: Iterable[str],
+    start_period: str = "1996-01",
+    raw_dir: Path = Path("data/raw"),
+) -> pd.DataFrame:
+    """Telecharge les prix Eurostat de plusieurs sous-classes COICOP 2018.
+
+    Un seul appel pour tous les postes -- `prc_hicp_minr` accepte plusieurs
+    codes `coicop18` en repetant le parametre dans l'URL, contrairement a
+    l'API BDM INSEE qui force un appel par code
+    (`collecte.insee.fetch_insee_prix_par_sous_classe`). Verifie en direct
+    le 23/08/2026, voir docs/SOURCES.md.
+
+    Args:
+        postes: codes COICOP2018 convention projet ("CP" + code), ex.
+            `["CP01111", "CP011"]`. Passes tels quels a l'API (prefixe `CP`
+            requis cote Eurostat, contrairement au code nu attendu par
+            l'INSEE).
+        start_period: premiere periode demandee, format AAAA-MM.
+        raw_dir: dossier ou le JSON brut est ecrit avant tout traitement.
+
+    Returns:
+        Table longue `source, poste, periode, valeur`. Un poste sans serie
+        publiee par Eurostat, ou dont la serie demarre apres
+        `start_period`, n'apparait simplement pas dans le resultat -- a la
+        charge de `traitement.poids.postes_sans_historique_a_la_reference`
+        de le detecter (docs/SOURCES.md : 66 postes sans historique complet
+        a REFERENCE sur les 296 de `poids.csv`, verifie le 23/08/2026).
+
+    Raises:
+        requests.RequestException: erreur reseau ou timeout.
+        ValueError: code HTTP different de 200 ou reponse illisible en JSON.
+    """
+    postes = list(postes)
+    params = [("format", "JSON"), ("geo", "FR")]
+    params += [("coicop18", poste) for poste in postes]
+    params += [("unit", "I15"), ("freq", "M"), ("sinceTimePeriod", start_period)]
+
+    texte_json = _get_eurostat_json(
+        PRC_HICP_MINR_URL,
+        params,
+        raw_dir,
+        f"eurostat_prix_sous_classe_{start_period}.json",
+    )
+
+    table = _decoder_json_stat(texte_json)
+    if table.empty:
+        return pd.DataFrame(columns=["source", "poste", "periode", "valeur"])
+
+    return (
+        table.rename(columns={"coicop18": "poste", "time": "periode"})
+        .assign(source="eurostat")[["source", "poste", "periode", "valeur"]]
+        .sort_values(["poste", "periode"])
+        .reset_index(drop=True)
+    )
 
 
 def fetch_eurostat_hbs_poids(raw_dir: Path = Path("data/raw")) -> pd.DataFrame:

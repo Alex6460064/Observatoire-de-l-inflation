@@ -17,12 +17,16 @@ from observatoire.collecte.eurostat import (
     fetch_eurostat_hbs_poids,
     fetch_eurostat_ipch_officiel,
     fetch_eurostat_ipch_poids_articles,
+    fetch_eurostat_prix_par_sous_classe,
 )
 from observatoire.collecte.insee import (
     fetch_insee_ipc_officiel,
     fetch_insee_prix_par_sous_classe,
 )
-from observatoire.traitement.eurostat import normaliser_eurostat_ipch_officiel
+from observatoire.traitement.eurostat import (
+    normaliser_eurostat_ipch_officiel,
+    normaliser_eurostat_prix_sous_classe,
+)
 from observatoire.traitement.insee import (
     normaliser_insee_ipc_officiel,
     normaliser_insee_prix_sous_classe,
@@ -57,9 +61,10 @@ def postes_avec_poids_non_nul(poids: pd.DataFrame) -> list[str]:
 def collecter_et_normaliser_toutes_sources(poids: pd.DataFrame) -> pd.DataFrame:
     """Appelle collecte + traitement pour chaque source connue.
 
-    INSEE (indice 0, `ipc_officiel`), Eurostat (indice 1, `ipch`), et prix
-    INSEE par sous-classe COICOP 2018 pour l'indice 3 (`poids` fournit la
-    liste des postes a collecter).
+    INSEE (indice 0, `ipc_officiel`), Eurostat (indice 1, `ipch`), prix
+    INSEE par sous-classe COICOP 2018 pour l'indice 3, et prix Eurostat par
+    sous-classe COICOP 2018 pour l'indice 2 (`poids` fournit la liste des
+    postes a collecter, partagee entre indices 2 et 3 -- ticket 02).
     """
     normalise_insee = normaliser_insee_ipc_officiel(fetch_insee_ipc_officiel())
     normalise_eurostat = normaliser_eurostat_ipch_officiel(
@@ -68,8 +73,16 @@ def collecter_et_normaliser_toutes_sources(poids: pd.DataFrame) -> pd.DataFrame:
     normalise_insee_sous_classe = normaliser_insee_prix_sous_classe(
         fetch_insee_prix_par_sous_classe(postes_avec_poids_non_nul(poids))
     )
+    normalise_eurostat_sous_classe = normaliser_eurostat_prix_sous_classe(
+        fetch_eurostat_prix_par_sous_classe(postes_avec_poids_non_nul(poids))
+    )
     return pd.concat(
-        [normalise_insee, normalise_eurostat, normalise_insee_sous_classe],
+        [
+            normalise_insee,
+            normalise_eurostat,
+            normalise_insee_sous_classe,
+            normalise_eurostat_sous_classe,
+        ],
         ignore_index=True,
     )[COLONNES_PRIX]
 
@@ -100,11 +113,17 @@ def main() -> None:
     prix = collecter_et_normaliser_toutes_sources(poids)
 
     # Un poste pondere sans historique jusqu'a REFERENCE ne peut pas etre
-    # rebase (docs/METHODOLOGIE.md 3.3) : exclu du panier, poids renormalise.
-    postes_insee = prix.loc[prix.source == "insee"]
-    sans_historique = postes_sans_historique_a_la_reference(
-        postes_insee, postes_avec_poids_non_nul(poids), REFERENCE
+    # rebase (docs/METHODOLOGIE.md 3.3). Panier commun entre indices 2 et 3
+    # (ticket 02) : exclusion = union des trous INSEE et Eurostat, poids.csv
+    # reste un seul fichier, renormalise une seule fois.
+    postes_pondere = postes_avec_poids_non_nul(poids)
+    sans_historique_insee = postes_sans_historique_a_la_reference(
+        prix.loc[prix.source == "insee"], postes_pondere, REFERENCE
     )
+    sans_historique_eurostat = postes_sans_historique_a_la_reference(
+        prix.loc[prix.source == "eurostat"], postes_pondere, REFERENCE
+    )
+    sans_historique = sorted(set(sans_historique_insee) | set(sans_historique_eurostat))
     poids = exclure_postes_du_panier(poids, sans_historique)
 
     PRIX_CSV.parent.mkdir(parents=True, exist_ok=True)

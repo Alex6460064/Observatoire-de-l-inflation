@@ -16,6 +16,7 @@ from observatoire.collecte.eurostat import (
     fetch_eurostat_hbs_poids,
     fetch_eurostat_ipch_officiel,
     fetch_eurostat_ipch_poids_articles,
+    fetch_eurostat_prix_par_sous_classe,
 )
 
 _REPONSE_DEUX_OBS = """{
@@ -217,6 +218,78 @@ def test_fetch_ipch_poids_articles_leve_value_error_si_code_http_different_de_20
 
     try:
         fetch_eurostat_ipch_poids_articles(raw_dir=tmp_path)
+        raised = False
+    except ValueError:
+        raised = True
+
+    assert raised
+
+
+# --- fetch_eurostat_prix_par_sous_classe ------------------------------------
+
+# Extrait reel (deux sous-classes, deux periodes) de la reponse batch
+# prc_hicp_minr capturee le 23/08/2026 pour les 296 postes de poids.csv --
+# voir docs/SOURCES.md.
+_REPONSE_PRIX_SOUS_CLASSE = """{
+"version":"2.0","class":"dataset","source":"ESTAT",
+"value":{"0":96.45,"1":96.09,"2":97.53,"3":97.18},
+"id":["freq","unit","coicop18","geo","time"],
+"size":[1,1,2,1,2],
+"dimension":{
+  "freq":{"category":{"index":{"M":0}}},
+  "unit":{"category":{"index":{"I15":0}}},
+  "coicop18":{"category":{"index":{"CP01111":0,"CP01112":1}}},
+  "geo":{"category":{"index":{"FR":0}}},
+  "time":{"category":{"index":{"2019-12":0,"2020-01":1}}}
+}}"""
+
+
+def test_fetch_prix_sous_classe_renvoie_source_poste_periode_valeur(
+    monkeypatch, tmp_path
+):
+    _reponse_factice(monkeypatch, 200, _REPONSE_PRIX_SOUS_CLASSE)
+
+    out = fetch_eurostat_prix_par_sous_classe(
+        ["CP01111", "CP01112"], start_period="2019-12", raw_dir=tmp_path
+    )
+
+    assert list(out.columns) == ["source", "poste", "periode", "valeur"]
+    assert (out["source"] == "eurostat").all()
+    assert set(out["poste"]) == {"CP01111", "CP01112"}
+
+
+def test_fetch_prix_sous_classe_valeurs_conformes_a_l_api(monkeypatch, tmp_path):
+    _reponse_factice(monkeypatch, 200, _REPONSE_PRIX_SOUS_CLASSE)
+
+    out = (
+        fetch_eurostat_prix_par_sous_classe(
+            ["CP01111", "CP01112"], start_period="2019-12", raw_dir=tmp_path
+        )
+        .set_index(["poste", "periode"])
+        .valeur
+    )
+
+    assert out[("CP01111", "2019-12")] == 96.45
+    assert out[("CP01112", "2020-01")] == 97.18
+
+
+def test_fetch_prix_sous_classe_ecrit_le_json_brut_dans_raw_dir(monkeypatch, tmp_path):
+    _reponse_factice(monkeypatch, 200, _REPONSE_PRIX_SOUS_CLASSE)
+
+    fetch_eurostat_prix_par_sous_classe(
+        ["CP01111", "CP01112"], start_period="2019-12", raw_dir=tmp_path
+    )
+
+    assert list(tmp_path.glob("eurostat_prix_sous_classe_*.json"))
+
+
+def test_fetch_prix_sous_classe_leve_value_error_si_code_http_different_de_200(
+    monkeypatch, tmp_path
+):
+    _reponse_factice(monkeypatch, 404, "not found")
+
+    try:
+        fetch_eurostat_prix_par_sous_classe(["CP01111"], raw_dir=tmp_path)
         raised = False
     except ValueError:
         raised = True

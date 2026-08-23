@@ -2,7 +2,10 @@
 
 import pandas as pd
 
-from observatoire.traitement.eurostat import normaliser_eurostat_ipch_officiel
+from observatoire.traitement.eurostat import (
+    normaliser_eurostat_ipch_officiel,
+    normaliser_eurostat_prix_sous_classe,
+)
 
 
 def brut(lignes):
@@ -61,3 +64,35 @@ def test_normaliser_conserve_source_poste_periode_valeur_inchanges():
     assert ligne["poste"] == "TOTAL"
     assert ligne["periode"] == "2019-12"
     assert ligne["valeur"] == 105.78
+
+
+# --- normaliser_eurostat_prix_sous_classe -----------------------------------
+
+
+def test_normaliser_prix_sous_classe_produit_exactement_les_colonnes_du_schema():
+    prix = brut([("eurostat", "CP01111", "2019-12", 96.45)])
+
+    out = normaliser_eurostat_prix_sous_classe(prix)
+
+    assert list(out.columns) == [
+        "source",
+        "poste",
+        "periode",
+        "valeur",
+        "qualite",
+        "interpole",
+    ]
+
+
+def test_normaliser_prix_sous_classe_met_qualite_api_ouverte_et_interpole_false():
+    prix = brut(
+        [
+            ("eurostat", "CP01111", "2019-12", 96.45),
+            ("eurostat", "CP01112", "2019-12", 97.53),
+        ]
+    )
+
+    out = normaliser_eurostat_prix_sous_classe(prix)
+
+    assert (out["qualite"] == "api_ouverte").all()
+    assert (out["interpole"] == False).all()  # noqa: E712

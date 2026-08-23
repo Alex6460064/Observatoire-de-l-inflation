@@ -203,17 +203,28 @@ transposé de chaque modalité est donc mis à l'échelle pour sommer exactement
 conservant la masse par groupe, remettre à l'échelle avant ou après ne
 change pas les parts relatives. Décidé le 22/08/2026.
 
-**Panier partiel : deux postes sans historique jusqu'à la référence.**
+**Panier partiel : postes sans historique jusqu'à la référence.**
 `rebaser` (section 5.2) exige une valeur de prix à `2019-12` pour chaque
-poste pondéré. Sur les 234 postes INSEE pondérés de l'indice 3, deux n'ont
-pas de série remontant jusque-là (vérifié le 22/08/2026) : `CP06310`
-(commence en 2025-01) et `CP10102` (commence en 2025-05, poids nul pour
-`QU1`/`QU2`). Poids perdu par quintile après exclusion et renormalisation :
-`QU1` 0,40 ‰, `QU2` 0,40 ‰, `QU3` 1,41 ‰, `QU4` 1,42 ‰, `QU5` 1,43 ‰ — sous
-1,5 ‰ dans tous les cas. Décidé avec Alexandre le 22/08/2026 : les exclure
-du panier pondéré plutôt que d'inventer une valeur à la référence, et
-renormaliser le reste à 1000 ‰ (`traitement.poids.exclure_postes_du_panier`),
-même logique que la renormalisation ci-dessus.
+poste pondéré. Une première vérification du 22/08/2026, sur les 234 postes
+INSEE alors pondérés de l'indice 3, avait trouvé deux postes concernés
+(`CP06310`, `CP10102`, poids perdu sous 1,5 ‰ par quintile). Depuis
+l'extension de `poids.csv` à 296 postes et l'introduction de l'indice 2
+(Eurostat `prc_hicp_minr`), un contrôle plus large le 23/08/2026 (ticket 01)
+donne : **62 postes** sans historique complet côté INSEE, **66** côté
+Eurostat — les 62 INSEE forment un sous-ensemble strict des 66 Eurostat
+(détail poste par poste : `docs/SOURCES.md`).
+
+**Décision (ticket 02, 23/08/2026) : panier commun.** Les indices 2 et 3 ne
+doivent différer que par la source de prix (section 2) — un panier
+différent entre eux casserait cette lecture. L'exclusion retenue est donc
+l'**union** des deux trous (66 postes), appliquée une seule fois à
+`poids.csv`, qui reste un fichier unique partagé entre les deux indices,
+renormalisé une seule fois à 1000 ‰
+(`traitement.poids.exclure_postes_du_panier`), même logique que la
+renormalisation ci-dessus. Coût du panier commun : 4 postes en plus exclus
+côté indice 3 par rapport à un panier INSEE isolé (`CP04210`, `CP04220` —
+loyers imputés, absents structurellement de l'IPCH, section 3.4 —
+`CP06133`, `CP09470`).
 
 ### 3.4 Le poste `CP042`, loyers imputés
 
