@@ -431,6 +431,18 @@ CP072(t)  =  0,673 × gazole(t)  +  0,327 × sp95_e10(t)
 Poids sourcés UFIP 2025 (`data/manual/parametres.csv`). `SP95` sans éthanol,
 `SP98`, `E85` et `GPLc` ne sont pas séparés — voir limite 18 ter.
 
+⚠️ **Correction du 23/08/2026 : format de `valeur` du XML source non stable
+dans le temps.** `collecte.carburants` convertissait systématiquement la
+`valeur` brute en la divisant par 1000, en supposant le format millième
+d'euro entier de 2019-2021. Or le site source est passé, sans préavis, à un
+format déjà en euros décimaux à partir du millésime 2022 (`"1.572"` contre
+`"1328"` avant) — vérifié sur les huit archives locales. Le bug effondrait
+`CP072` à ~0,1 % de sa valeur réelle sur toute la période 2022-2026, ce qui
+biaisait fortement l'indice Observatoire à la baisse sans rapport avec un
+signal économique. Corrigé par détection du format valeur par valeur
+(présence d'un point décimal), pas par millésime — détail dans
+`docs/SOURCES.md` et le module `collecte.carburants`.
+
 `CP045` : formule déjà en section 6 (barème + profil de consommation).
 
 ⚠️ **Pour une future intégration de `CP01`** : contrairement à `CP041`,
