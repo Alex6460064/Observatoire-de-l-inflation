@@ -1126,6 +1126,93 @@ jour non respectée signalée sur la fiche elle-même, série non maintenue.
 
 ---
 
+## DARES — Salaire mensuel de base (SMB), comparaison salaires/prix
+
+Testé le 23/08/2026 (ADR 0022). Producteur : Dares (Direction de l'animation
+de la recherche, des études et des statistiques, ministère du Travail),
+à partir de l'enquête trimestrielle Acemo.
+
+<https://dares.travail-emploi.gouv.fr/donnees/les-indices-de-salaire-de-base>
+
+### Fichier vérifié le 23/08/2026
+
+Fichier XLSX téléchargé et ouvert directement (`openpyxl`), pas seulement
+cité : `Dares_serie_salaire_de_base_t1_2026.xlsx`, 252 856 octets, huit
+feuilles. Feuille retenue : **`Sal. mens. ensemble`**, ligne `ENS`
+« Ensemble des secteurs non agricoles ».
+
+En-tête de la feuille (cellules elles-mêmes) :
+
+```
+Titre : Salaire mensuel de base de l'ensemble des salariés depuis juin 2017
+Type de données : données trimestrielles
+Unité : base 100 en juin 2017
+Champ : France hors Mayotte, salariés des établissements d'entreprises
+        de 10 salariés ou plus
+Source : Dares, enquête trimestrielle Acemo
+```
+
+Colonnes trimestrielles juin 2017 → mars 2026 (36 points), plus trois
+colonnes de variation (3/6/12 mois). Valeur au point de référence du
+projet, `2019-12` (ADR 0009) : **103,8** (colonne « dec » 2019, présente,
+pas de trou à cette date). Un trou existe une colonne plus loin, mars 2020
+(`'n.d.'`) — à traiter par l'interpolation déjà en place pour les autres
+séries trouées (ADR 0015).
+
+Dernier point du fichier testé : mars 2026, valeur 121,9. Glissement annuel
+publié en colonne dédiée : +1,7 % sur les douze derniers mois du fichier —
+cohérent avec les communiqués Dares consultés le même jour (+1,9 % sur un an
+fin juin 2026, trimestre suivant).
+
+### ⚠️ Le champ exclut le secteur public — c'est la définition même du SMB
+
+L'enquête Acemo ne couvre que les entreprises privées de 10 salariés ou plus,
+hors secteur agricole, administration publique, activités des ménages et
+activités extraterritoriales (précisé sur la page Dares). « Ensemble des
+salariés » désigne donc l'ensemble du champ Acemo, pas l'ensemble des
+salariés français au sens large. C'est la définition retenue pour la
+variable `salaire_smb` du projet (ADR 0022) — à ne jamais présenter comme
+couvrant la fonction publique.
+
+### ⚠️ URL du fichier non stable — piège documenté par la Dares elle-même
+
+Le nom de fichier change à chaque publication trimestrielle
+(`..._t1_2026.xlsx`, le prochain sera `..._t2_2026.xlsx`, etc.). Les mentions
+légales du site le disent explicitement : lier vers la page
+`/donnees/les-indices-de-salaire-de-base`, jamais vers le fichier lui-même.
+Toute collecte doit donc repartir de cette page à chaque exécution, pas d'une
+URL de fichier codée en dur.
+
+### ⚠️ Téléchargement direct (`requests`/`curl`) bloqué — collecte manuelle
+
+Le domaine `dares.travail-emploi.gouv.fr` est hébergé par Cegedim et protégé
+par une vérification anti-bot : un `curl` ou `requests.get()` classique,
+même avec un `User-Agent` de navigateur, reçoit une page HTML
+« Vérification de sécurité » (CAPTCHA) à la place du fichier — vérifié à la
+fois sur la page et sur l'URL directe du XLSX. Confirmé aussi indirectement
+sur la fiche miroir data.gouv.fr du même jeu de données (« Le robot de
+data.gouv.fr n'a pas pu accéder à ce fichier », taille annoncée 245 octets
+au lieu des ~247 Ko réels) : le blocage touche aussi le crawler de
+data.gouv.fr, pas seulement des clients HTTP non-navigateur.
+
+Un navigateur réel (session Chrome, cookies acceptés) passe la vérification
+sans difficulté et télécharge le fichier normalement. **Conséquence pour la
+collecte : `salaire_smb` ne peut pas suivre le patron `requests` de
+`collecte/insee.py`/`collecte/eurostat.py`.** Même traitement que Familles
+Rurales et ARCEP (ADR 0004) : téléchargement manuel périodique (chaque
+trimestre, au rythme de publication Dares), fichier archivé dans
+`data/raw/` avec sa date, puis lecture/traitement pur en `traitement/`.
+
+### Licence — régime L322-1 CRPA, comme la CRE et la Carte des loyers
+
+Vérifié le 23/08/2026 sur `dares.travail-emploi.gouv.fr/mentions-legales`.
+Aucune licence nommée : « informations publiques librement et gratuitement
+réutilisables » sous la loi n°78-753 du 17 juillet 1978 — même régime que
+celui déjà documenté plus bas pour la CRE et la Carte des loyers
+(non-altération, mention de la source, mention de la date de mise à jour).
+
+---
+
 ## Régime des licences — vérifié le 21/08/2026
 
 Deux sources de l'indice Observatoire portent la licence `notspecified` sur

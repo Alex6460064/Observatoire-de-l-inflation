@@ -3,13 +3,15 @@
 Ne fait aucun appel reseau : elle lit `data/processed/` et recalcule en direct
 ce qui depend des choix de l'utilisateur (ADR 0008).
 
-Quatre courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
+Cinq courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
 `2019-12 = 100` codee en dur (ADR 0009) ; `ipch_repondere` (indice 2) et
 `ipc_repondere` (indice 3), recalculees en direct a chaque changement de
 quintile via un selecteur Streamlit partage -- meme panier pour les deux
 (panier commun, docs/METHODOLOGIE.md section 3.3), seule la repondering est
 dynamique (docs/METHODOLOGIE.md section 7), `rebaser`/`indice` de
-`analyse/indice.py` sont reutilises tels quels.
+`analyse/indice.py` sont reutilises tels quels ; `salaire_smb`, salaire
+nominal Dares superpose aux quatre indices de prix, hors du cadre des cinq
+indices de l'ADR 0002 -- pas de prix, pas de poids HBS (ADR 0022).
 """
 
 import json
@@ -27,6 +29,7 @@ REFERENCE = "2019-12"
 
 PRIX_CSV = Path("data/processed/prix.csv")
 POIDS_CSV = Path("data/processed/poids.csv")
+SALAIRE_CSV = Path("data/processed/salaire_smb.csv")
 META_JSON = Path("data/processed/META.json")
 
 # Seul axe de profil expose en v1 (ADR 0011) -- docs/METHODOLOGIE.md section 7.
@@ -47,6 +50,11 @@ INDICES = [
     Indice(label="ipch", source="eurostat", poste="TOTAL"),
 ]
 
+# Hors du cadre des cinq indices de l'ADR 0002 -- pas de prix, pas de poids
+# HBS, salaire nominal seul (ADR 0022). Reutilise `rebaser_indice` tel quel :
+# meme schema de colonnes que prix.csv.
+SALAIRE_SMB = Indice(label="salaire_smb", source="dares", poste="ENS")
+
 
 def charger_prix() -> pd.DataFrame:
     return pd.read_csv(PRIX_CSV, dtype={"poste": str, "periode": str})
@@ -54,6 +62,10 @@ def charger_prix() -> pd.DataFrame:
 
 def charger_poids() -> pd.DataFrame:
     return pd.read_csv(POIDS_CSV, dtype={"poste": str, "modalite": str})
+
+
+def charger_salaire_smb() -> pd.DataFrame:
+    return pd.read_csv(SALAIRE_CSV, dtype={"poste": str, "periode": str})
 
 
 def charger_meta() -> dict:
@@ -138,6 +150,7 @@ def main() -> None:
 
     prix = charger_prix()
     poids = charger_poids()
+    salaire_smb = charger_salaire_smb()
     meta = charger_meta()
 
     col_selecteur, _ = st.columns([1, 3])
@@ -148,6 +161,7 @@ def main() -> None:
         st.caption(f"Poids de profil : {MILLESIME_POIDS}.")
 
     rebases = [rebaser_indice(prix, indice) for indice in INDICES]
+    rebases.append(rebaser_indice(salaire_smb, SALAIRE_SMB))
     rebases.append(calculer_indice_2(prix, poids, modalite))
     rebases.append(calculer_indice_3(prix, poids, modalite))
 

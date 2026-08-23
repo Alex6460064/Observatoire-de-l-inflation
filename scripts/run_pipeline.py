@@ -13,6 +13,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from observatoire.collecte.dares import (
+    chemin_dernier_fichier_salaire_smb,
+    lire_salaire_smb,
+)
 from observatoire.collecte.eurostat import (
     fetch_eurostat_hbs_poids,
     fetch_eurostat_ipch_officiel,
@@ -23,6 +27,7 @@ from observatoire.collecte.insee import (
     fetch_insee_ipc_officiel,
     fetch_insee_prix_par_sous_classe,
 )
+from observatoire.traitement.dares import completer_mensuel, nettoyer_salaire_smb
 from observatoire.traitement.eurostat import (
     normaliser_eurostat_ipch_officiel,
     normaliser_eurostat_prix_sous_classe,
@@ -39,11 +44,14 @@ from observatoire.traitement.poids import (
 
 PRIX_CSV = Path("data/processed/prix.csv")
 POIDS_CSV = Path("data/processed/poids.csv")
+SALAIRE_CSV = Path("data/processed/salaire_smb.csv")
 META_JSON = Path("data/processed/META.json")
 CORRESPONDANCE_CSV = Path("data/manual/correspondance_coicop.csv")
+RAW_DIR = Path("data/raw")
 
 COLONNES_PRIX = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 COLONNES_POIDS = ["axe", "modalite", "poste", "pm"]
+COLONNES_SALAIRE = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 
 # Meme reference que dashboard.py (ADR 0009) : synchronisee a la main, un seul
 # lieu de verite n'existe pas encore dans le projet.
@@ -101,6 +109,18 @@ def assembler_poids() -> pd.DataFrame:
     return poids[COLONNES_POIDS]
 
 
+def construire_salaire_smb(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
+    """Salaire mensuel de base (SMB), indice 6 hors ADR 0002 (ADR 0022).
+
+    Pas de reseau : lit le dernier fichier Dares archive dans `raw_dir`
+    (telechargement manuel, blocage anti-bot Cegedim -- ADR 0022) plutot
+    que de le collecter.
+    """
+    brut = lire_salaire_smb(chemin_dernier_fichier_salaire_smb(raw_dir))
+    propre = nettoyer_salaire_smb(brut)
+    return completer_mensuel(propre)[COLONNES_SALAIRE]
+
+
 def ecrire_meta(chemin: Path, date_collecte: date) -> None:
     chemin.parent.mkdir(parents=True, exist_ok=True)
     chemin.write_text(
@@ -127,9 +147,12 @@ def main() -> None:
     sans_historique = sorted(set(sans_historique_insee) | set(sans_historique_eurostat))
     poids = exclure_postes_du_panier(poids, sans_historique)
 
+    salaire_smb = construire_salaire_smb()
+
     PRIX_CSV.parent.mkdir(parents=True, exist_ok=True)
     prix.to_csv(PRIX_CSV, index=False)
     poids.to_csv(POIDS_CSV, index=False)
+    salaire_smb.to_csv(SALAIRE_CSV, index=False)
 
     ecrire_meta(META_JSON, datetime.now().date())
 

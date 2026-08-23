@@ -14,6 +14,12 @@ data/raw/*
 # a refaire.
 !data/raw/ademe_carlabelling_*.csv
 
+# Exception : DARES SMB (ADR 0022). Anti-bot Cegedim bloque tout
+# telechargement automatise (requests/curl, meme navigateur simule) --
+# collecte manuelle par trimestre. Sans versionnage, perdre ce fichier local
+# rend salaire_smb.csv irreproductible : aucune autre source ne le remplace.
+!data/raw/dares_salaire_smb_*.xlsx
+
 # data/processed/ EST versionné (ADR 0008) : le CSV rend visible en revue git
 # qu'une valeur publiée a changé. Ne pas ajouter d'exclusion ici.
 

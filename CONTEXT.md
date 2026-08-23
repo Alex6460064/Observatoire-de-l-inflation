@@ -53,6 +53,14 @@ disponibles pour chacun, et recombiné avec les poids du profil de ménage. Seul
 indice dont les prix ne viennent pas d'un institut statistique.
 _Avoid_: indice maison, vrai indice, notre inflation
 
+**Salaire mensuel de base (`salaire_smb`)** :
+Courbe d'évolution du salaire nominal, superposée aux cinq indices pour en
+visualiser la divergence. Source Dares (enquête Acemo), établissements privés
+de 10 salariés ou plus, France hors Mayotte — **la fonction publique n'est pas
+couverte**. Ce n'est pas un sixième indice de l'ADR 0002 : ni source de prix ni
+poids de profil. Aucune déflation par un indice de prix en v1.
+_Avoid_: salaire, salaires, pouvoir d'achat, salaire réel
+
 ## Le panier et les poids
 
 **Poste** :

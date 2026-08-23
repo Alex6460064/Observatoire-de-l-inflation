@@ -65,6 +65,19 @@ Les indices 2 et 3 diffèrent uniquement par la source de prix — c'est ce qui 
 lisible la part de l'écart due à la méthode INSEE contre méthode Eurostat, et non
 à la personnalisation.
 
+### 2 bis. Une sixième série, hors du cadre des cinq indices
+
+`salaire_smb` (ADR 0022) superpose l'évolution du salaire mensuel de base
+(Dares, enquête Acemo) aux cinq indices, pour visualiser leur divergence. Ce
+n'est **pas un sixième indice de prix** : elle n'a ni source de prix ni poids
+HBS, donc n'entre pas dans le tableau ci-dessus. Nominal seul — aucune
+déflation par un des cinq indices en v1 (question ouverte, non tranchée).
+
+Périmètre : établissements privés de 10 salariés ou plus, France hors
+Mayotte — la fonction publique n'est **pas couverte**, à rappeler partout où
+`salaire_smb` est affiché. Détail : `docs/SOURCES.md`, section « DARES —
+Salaire mensuel de base ».
+
 ---
 
 ## 3. Les poids
@@ -472,6 +485,10 @@ millésimes 2019, 2020 et 2021 de la Carte des loyers **n'ont jamais été produ
 — le projet a changé de porteur entre-temps. `CP041` est donc interpolé entre 2018
 et 2022, soit **47 valeurs mensuelles calculées**.
 
+**`salaire_smb` (ADR 0022) est trimestriel** quand le graphe est mensuel (ADR
+0013) : deux des trois mois de chaque trimestre sont interpolés, même règle
+et même marquage `interpole` que les autres sources non mensuelles.
+
 ### 5.4 Le graphe
 
 Cinq indices, **pas mensuel, en niveau**, base `2019-12 = 100` (ADR 0013).
@@ -745,3 +762,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0019 | source `CP01` : Familles Rurales |
 | 0020 | candidat `CP071` : ADEME Car Labelling, archivage sans adoption |
 | 0021 | raccord de sources : IPCH avant la première capture, série propre après |
+| 0022 | comparaison salaires/prix : ajout de `salaire_smb` |
