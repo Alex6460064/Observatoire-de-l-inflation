@@ -295,3 +295,52 @@ def test_fetch_prix_sous_classe_leve_value_error_si_code_http_different_de_200(
         raised = True
 
     assert raised
+
+
+def test_fetch_prix_sous_classe_liste_vide_ne_fait_aucun_appel_reseau(
+    monkeypatch, tmp_path
+):
+    def get_interdit(*args, **kwargs):
+        raise AssertionError("aucun appel reseau attendu pour une liste vide")
+
+    monkeypatch.setattr(requests, "get", get_interdit)
+
+    out = fetch_eurostat_prix_par_sous_classe([], raw_dir=tmp_path)
+
+    assert list(out.columns) == ["source", "poste", "periode", "valeur"]
+    assert out.empty
+
+
+# Extrait reel du groupe CP041 (loyers reels), memes valeurs que
+# docs/SOURCES.md -- CP04210/CP04220 (loyers imputes) sont structurellement
+# absents de l'IPCH et recoivent cette serie (docs/METHODOLOGIE.md 3.4).
+_REPONSE_CP041_SEUL = """{
+"version":"2.0","class":"dataset","source":"ESTAT",
+"value":{"0":100.95,"1":101.02},
+"id":["freq","unit","coicop18","geo","time"],
+"size":[1,1,1,1,2],
+"dimension":{
+  "freq":{"category":{"index":{"M":0}}},
+  "unit":{"category":{"index":{"I15":0}}},
+  "coicop18":{"category":{"index":{"CP041":0}}},
+  "geo":{"category":{"index":{"FR":0}}},
+  "time":{"category":{"index":{"2019-12":0,"2020-01":1}}}
+}}"""
+
+
+def test_fetch_prix_sous_classe_substitue_cp041_pour_les_loyers_imputes(
+    monkeypatch, tmp_path
+):
+    # CP04210/CP04220 demandes mais absents de la reponse (comme en realite,
+    # verifie le 23/08/2026) : seul CP041 revient, car ajoute d'office a la
+    # requete pour servir de substitut.
+    _reponse_factice(monkeypatch, 200, _REPONSE_CP041_SEUL)
+
+    out = fetch_eurostat_prix_par_sous_classe(
+        ["CP04210", "CP04220"], start_period="2019-12", raw_dir=tmp_path
+    )
+
+    assert set(out["poste"]) == {"CP04210", "CP04220"}
+    valeurs = out.set_index(["poste", "periode"]).valeur
+    assert valeurs[("CP04210", "2019-12")] == 100.95
+    assert valeurs[("CP04220", "2020-01")] == 101.02

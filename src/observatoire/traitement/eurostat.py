@@ -33,7 +33,10 @@ def normaliser_eurostat_prix_sous_classe(prix: pd.DataFrame) -> pd.DataFrame:
 
     Prix Eurostat par sous-classe COICOP 2018 (indice 2, ADR 0018) : donnee
     mensuelle publiee par un endpoint public rejouable, `qualite` vaut
-    toujours `api_ouverte` et `interpole` toujours `False`.
+    toujours `api_ouverte` et `interpole` toujours `False` -- y compris pour
+    les postes substitues par `CP041` (docs/METHODOLOGIE.md 3.4), qui
+    restent une donnee reellement publiee, seulement reappliquee a un autre
+    poste.
 
     Args:
         prix: table longue renvoyee par

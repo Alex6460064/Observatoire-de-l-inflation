@@ -231,6 +231,18 @@ def _decoder_json_stat(texte_json: str) -> pd.DataFrame:
     return pd.DataFrame(lignes)
 
 
+# CP042 (loyers imputes) se transpose vers ces deux sous-classes
+# (data/manual/correspondance_coicop.csv) ; structurellement absentes de
+# l'IPCH (verifie en direct le 23/08/2026, voir docs/SOURCES.md), comme cote
+# INSEE (`collecte.insee.SOUS_CLASSES_LOYERS_IMPUTES`). Meme substitution
+# que l'indice 3 (docs/METHODOLOGIE.md 3.4) : sans elle, panier commun
+# (ticket 02) exclurait ces deux postes qui pesent jusqu'a 172 pour mille en
+# QU5 -- ecarte explicitement par la methodologie ("le cas d'usage central
+# du projet disparaitrait").
+SOUS_CLASSES_LOYERS_IMPUTES = ("CP04210", "CP04220")
+CODE_GROUPE_LOYERS_REELS = "CP041"
+
+
 def fetch_eurostat_prix_par_sous_classe(
     postes: Iterable[str],
     start_period: str = "1996-01",
@@ -242,31 +254,43 @@ def fetch_eurostat_prix_par_sous_classe(
     codes `coicop18` en repetant le parametre dans l'URL, contrairement a
     l'API BDM INSEE qui force un appel par code
     (`collecte.insee.fetch_insee_prix_par_sous_classe`). Verifie en direct
-    le 23/08/2026, voir docs/SOURCES.md.
+    le 23/08/2026, voir docs/SOURCES.md. `CP04210` et `CP04220`
+    (`SOUS_CLASSES_LOYERS_IMPUTES`) recoivent la serie du groupe `CP041`
+    (loyers reels) si demandes -- Eurostat publie aussi ce code groupe,
+    meme traitement que l'indice 3 (docs/METHODOLOGIE.md 3.4).
 
     Args:
         postes: codes COICOP2018 convention projet ("CP" + code), ex.
             `["CP01111", "CP011"]`. Passes tels quels a l'API (prefixe `CP`
             requis cote Eurostat, contrairement au code nu attendu par
-            l'INSEE).
+            l'INSEE). Liste vide : aucun appel reseau, table vide renvoyee.
         start_period: premiere periode demandee, format AAAA-MM.
         raw_dir: dossier ou le JSON brut est ecrit avant tout traitement.
 
     Returns:
         Table longue `source, poste, periode, valeur`. Un poste sans serie
-        publiee par Eurostat, ou dont la serie demarre apres
-        `start_period`, n'apparait simplement pas dans le resultat -- a la
-        charge de `traitement.poids.postes_sans_historique_a_la_reference`
-        de le detecter (docs/SOURCES.md : 66 postes sans historique complet
-        a REFERENCE sur les 296 de `poids.csv`, verifie le 23/08/2026).
+        publiee par Eurostat (hors substitution loyers imputes), ou dont la
+        serie demarre apres `start_period`, n'apparait simplement pas dans
+        le resultat -- a la charge de
+        `traitement.poids.postes_sans_historique_a_la_reference` de le
+        detecter (docs/SOURCES.md : 66 postes sans historique complet a
+        REFERENCE sur les 296 de `poids.csv`, verifie le 23/08/2026).
 
     Raises:
         requests.RequestException: erreur reseau ou timeout.
         ValueError: code HTTP different de 200 ou reponse illisible en JSON.
     """
     postes = list(postes)
+    if not postes:
+        return pd.DataFrame(columns=["source", "poste", "periode", "valeur"])
+
+    a_substituer = [p for p in postes if p in SOUS_CLASSES_LOYERS_IMPUTES]
+    codes_a_demander = list(postes)
+    if a_substituer and CODE_GROUPE_LOYERS_REELS not in codes_a_demander:
+        codes_a_demander.append(CODE_GROUPE_LOYERS_REELS)
+
     params = [("format", "JSON"), ("geo", "FR")]
-    params += [("coicop18", poste) for poste in postes]
+    params += [("coicop18", code) for code in codes_a_demander]
     params += [("unit", "I15"), ("freq", "M"), ("sinceTimePeriod", start_period)]
 
     texte_json = _get_eurostat_json(
@@ -280,9 +304,20 @@ def fetch_eurostat_prix_par_sous_classe(
     if table.empty:
         return pd.DataFrame(columns=["source", "poste", "periode", "valeur"])
 
+    table = table.rename(columns={"coicop18": "poste", "time": "periode"}).assign(
+        source="eurostat"
+    )
+
+    manquants = [p for p in a_substituer if p not in set(table.poste)]
+    if manquants:
+        substitut = table.loc[table.poste == CODE_GROUPE_LOYERS_REELS]
+        for poste in manquants:
+            copie = substitut.copy()
+            copie["poste"] = poste
+            table = pd.concat([table, copie], ignore_index=True)
+
     return (
-        table.rename(columns={"coicop18": "poste", "time": "periode"})
-        .assign(source="eurostat")[["source", "poste", "periode", "valeur"]]
+        table.loc[table.poste.isin(postes), ["source", "poste", "periode", "valeur"]]
         .sort_values(["poste", "periode"])
         .reset_index(drop=True)
     )

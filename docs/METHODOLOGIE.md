@@ -217,14 +217,22 @@ Eurostat — les 62 INSEE forment un sous-ensemble strict des 66 Eurostat
 **Décision (ticket 02, 23/08/2026) : panier commun.** Les indices 2 et 3 ne
 doivent différer que par la source de prix (section 2) — un panier
 différent entre eux casserait cette lecture. L'exclusion retenue est donc
-l'**union** des deux trous (66 postes), appliquée une seule fois à
-`poids.csv`, qui reste un fichier unique partagé entre les deux indices,
-renormalisé une seule fois à 1000 ‰
-(`traitement.poids.exclure_postes_du_panier`), même logique que la
-renormalisation ci-dessus. Coût du panier commun : 4 postes en plus exclus
-côté indice 3 par rapport à un panier INSEE isolé (`CP04210`, `CP04220` —
-loyers imputés, absents structurellement de l'IPCH, section 3.4 —
-`CP06133`, `CP09470`).
+l'**union** des deux trous, appliquée une seule fois à `poids.csv`, qui
+reste un fichier unique partagé entre les deux indices, renormalisé une
+seule fois à 1000 ‰ (`traitement.poids.exclure_postes_du_panier`), même
+logique que la renormalisation ci-dessus.
+
+⚠️ **Correction du 23/08/2026** : la première estimation du coût (4 postes,
+« négligeable ») ignorait leur poids. `CP04210` et `CP04220` pèsent
+**jusqu'à 172 ‰ en QU5** — les exclure aurait directement contredit la
+section 3.4 (l'exclusion de `CP042` a été explicitement écartée). Détecté
+par revue de code avant tout commit de données. Correction retenue :
+Eurostat publie aussi le code groupe `CP041` (vérifié en direct) — la même
+substitution loyers imputés que l'indice 3 s'applique côté Eurostat
+(`collecte.eurostat.SOUS_CLASSES_LOYERS_IMPUTES`), donc `CP04210`/`CP04220`
+restent dans le panier commun pour les deux indices. Coût réel du panier
+commun, une fois cette substitution appliquée : `CP06133` + `CP09470` ≈
+**0,15 ‰** (`CP09470` a un poids nul dans tous les quintiles).
 
 ### 3.4 Le poste `CP042`, loyers imputés
 

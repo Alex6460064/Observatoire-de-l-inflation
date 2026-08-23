@@ -51,9 +51,10 @@ REFERENCE = "2019-12"
 
 
 def postes_avec_poids_non_nul(poids: pd.DataFrame) -> list[str]:
-    """Postes a collecter cote prix INSEE : ceux qui pesent reellement quelque
-    chose dans au moins un quintile (ticket #12) -- inutile de collecter un
-    poste qui pese zero partout.
+    """Postes a collecter cote prix, INSEE (indice 3) comme Eurostat (indice
+    2, ticket 03) : ceux qui pesent reellement quelque chose dans au moins
+    un quintile (ticket #12) -- inutile de collecter un poste qui pese zero
+    partout.
     """
     return sorted(poids.loc[poids.pm > 0, "poste"].unique())
 
