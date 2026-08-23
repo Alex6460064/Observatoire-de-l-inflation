@@ -3,12 +3,13 @@
 Ne fait aucun appel reseau : elle lit `data/processed/` et recalcule en direct
 ce qui depend des choix de l'utilisateur (ADR 0008).
 
-Trois courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
-`2019-12 = 100` codee en dur (ADR 0009) ; et `ipc_repondere` (indice 3),
-recalcule en direct a chaque changement de quintile via un selecteur
-Streamlit -- seule la repondering est dynamique (docs/METHODOLOGIE.md
-section 7), `rebaser`/`indice` de `analyse/indice.py` sont reutilises tels
-quels.
+Quatre courbes : `ipc_officiel` (indice 0) et `ipch` (indice 1), base
+`2019-12 = 100` codee en dur (ADR 0009) ; `ipch_repondere` (indice 2) et
+`ipc_repondere` (indice 3), recalculees en direct a chaque changement de
+quintile via un selecteur Streamlit partage -- meme panier pour les deux
+(panier commun, docs/METHODOLOGIE.md section 3.3), seule la repondering est
+dynamique (docs/METHODOLOGIE.md section 7), `rebaser`/`indice` de
+`analyse/indice.py` sont reutilises tels quels.
 """
 
 import json
@@ -70,14 +71,19 @@ def rebaser_indice(prix: pd.DataFrame, indice: Indice) -> pd.DataFrame:
     return rebaser(brut, REFERENCE).sort_values("periode").assign(serie=indice.label)
 
 
-def calculer_indice_3(
-    prix: pd.DataFrame, poids: pd.DataFrame, modalite: str
+def _calculer_indice_repondere(
+    prix: pd.DataFrame,
+    poids: pd.DataFrame,
+    modalite: str,
+    source: str,
+    serie: str,
 ) -> pd.DataFrame:
-    """Indice 3 (IPC repondere), recalcule en direct pour une modalite de quintile.
+    """Recalcule en direct un indice reponderee (2 ou 3) pour une modalite de
+    quintile. Commun aux deux : meme panier de poids -- panier commun entre
+    indices 2 et 3, decide au ticket 02 (docs/METHODOLOGIE.md 3.3) -- seule
+    la source de prix (`insee` ou `eurostat`) change.
 
-    Prix INSEE par sous-classe COICOP 2018, poids du quintile choisi
-    (`poids.csv`, deja renormalises a 1000 pour mille -- docs/METHODOLOGIE.md
-    3.3). La courbe ne demarre qu'a la premiere periode ou tous les postes du
+    La courbe ne demarre qu'a la premiere periode ou tous les postes du
     panier ont une valeur (limite 18, meme principe que la limite 17) :
     `indice` refuse tout point agrege sur un panier partiel plutot que de
     l'afficher silencieusement.
@@ -91,7 +97,7 @@ def calculer_indice_3(
         .set_index("poste")
         .pm
     )
-    brut = prix.loc[(prix.source == "insee") & (prix.poste.isin(vecteur.index))]
+    brut = prix.loc[(prix.source == source) & (prix.poste.isin(vecteur.index))]
     debut = brut.groupby("poste").periode.min().max()
     brut = brut.loc[brut.periode >= debut]
 
@@ -100,11 +106,29 @@ def calculer_indice_3(
 
     return pd.DataFrame(
         {
-            "serie": "ipc_repondere",
+            "serie": serie,
             "periode": valeurs.index,
             "valeur": valeurs.to_numpy(),
             "interpole": False,
         }
+    )
+
+
+def calculer_indice_2(
+    prix: pd.DataFrame, poids: pd.DataFrame, modalite: str
+) -> pd.DataFrame:
+    """Indice 2 (IPCH repondere) : prix Eurostat par sous-classe COICOP 2018."""
+    return _calculer_indice_repondere(
+        prix, poids, modalite, source="eurostat", serie="ipch_repondere"
+    )
+
+
+def calculer_indice_3(
+    prix: pd.DataFrame, poids: pd.DataFrame, modalite: str
+) -> pd.DataFrame:
+    """Indice 3 (IPC repondere) : prix INSEE par sous-classe COICOP 2018."""
+    return _calculer_indice_repondere(
+        prix, poids, modalite, source="insee", serie="ipc_repondere"
     )
 
 
@@ -124,6 +148,7 @@ def main() -> None:
         st.caption(f"Poids de profil : {MILLESIME_POIDS}.")
 
     rebases = [rebaser_indice(prix, indice) for indice in INDICES]
+    rebases.append(calculer_indice_2(prix, poids, modalite))
     rebases.append(calculer_indice_3(prix, poids, modalite))
 
     col_graphe, col_chiffres = st.columns([3, 1])
