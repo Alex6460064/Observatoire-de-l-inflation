@@ -44,6 +44,13 @@ TIMEOUT_SECONDES = 30
 # 30 appels/minute/IP maximum (docs/SOURCES.md) : marge incluse.
 DELAI_ENTRE_APPELS_SECONDES = 2.1
 
+# L'API BDM reinitialise parfois la connexion en cours de collecte longue
+# (constate le 23/08/2026, ConnectionResetError sur plusieurs centaines
+# d'appels) : une erreur de connexion ponctuelle n'est pas une absence de
+# serie, elle merite une reprise avant d'abandonner tout le run.
+NB_TENTATIVES_CONNEXION = 3
+DELAI_ENTRE_TENTATIVES_SECONDES = 3.0
+
 # CP042 (loyers imputes) se transpose vers ces deux sous-classes
 # (data/manual/correspondance_coicop.csv) ; aucune des deux n'a de serie
 # INSEE hors loyers imputes. Substitution documentee : docs/METHODOLOGIE.md
@@ -167,14 +174,28 @@ def fetch_insee_prix_sous_classe(
             reponse illisible en XML, ou plusieurs series renvoyees.
     """
     url = f"{BDM_IPC_2025_URL}/M.IPC.SO.{code}.SO.INDICE.ENSEMBLE.FE.SO.BRUT.2025.FALSE"
-    try:
-        reponse = requests.get(
-            url, params={"startPeriod": start_period}, timeout=TIMEOUT_SECONDES
-        )
-    except requests.RequestException as exc:
+    reponse = None
+    derniere_erreur: requests.RequestException | None = None
+    for tentative in range(NB_TENTATIVES_CONNEXION):
+        if tentative > 0:
+            time.sleep(DELAI_ENTRE_TENTATIVES_SECONDES)
+        try:
+            reponse = requests.get(
+                url, params={"startPeriod": start_period}, timeout=TIMEOUT_SECONDES
+            )
+            break
+        except requests.exceptions.ConnectionError as exc:
+            derniere_erreur = exc
+        except requests.RequestException as exc:
+            raise requests.RequestException(
+                f"Echec de connexion a l'API BDM INSEE ({url}) : {exc}"
+            ) from exc
+
+    if reponse is None:
         raise requests.RequestException(
-            f"Echec de connexion a l'API BDM INSEE ({url}) : {exc}"
-        ) from exc
+            f"Echec de connexion a l'API BDM INSEE ({url}) apres "
+            f"{NB_TENTATIVES_CONNEXION} tentatives : {derniere_erreur}"
+        ) from derniere_erreur
 
     if _reponse_sans_resultat(reponse):
         return pd.DataFrame(columns=COLONNES_PRIX_BRUT)

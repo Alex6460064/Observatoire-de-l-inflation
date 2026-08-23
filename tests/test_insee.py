@@ -11,10 +11,13 @@ des extraits reels (recadres sur deux observations), captures en direct le
 resultat").
 """
 
+import time
+
 import requests
 
 from observatoire.collecte import fetch_insee_ipc_officiel
 from observatoire.collecte.insee import (
+    NB_TENTATIVES_CONNEXION,
     SOUS_CLASSES_LOYERS_IMPUTES,
     fetch_insee_prix_par_sous_classe,
     fetch_insee_prix_sous_classe,
@@ -170,6 +173,51 @@ def test_fetch_insee_prix_sous_classe_renvoie_une_table_vide_si_code_100(
 
     assert out.empty
     assert list(out.columns) == ["source", "poste", "periode", "valeur"]
+
+
+def test_fetch_insee_prix_sous_classe_reprend_apres_une_erreur_de_connexion(
+    monkeypatch, tmp_path
+):
+    # Constate le 23/08/2026 : l'API BDM reinitialise parfois la connexion
+    # en cours de collecte longue (ConnectionResetError). Une reprise doit
+    # aboutir sans faire echouer tout le run.
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    appels = {"n": 0}
+
+    def fake_get(*a, **k):
+        appels["n"] += 1
+        if appels["n"] == 1:
+            raise requests.exceptions.ConnectionError("connexion reinitialisee")
+        return _ReponseFactice(200, _REPONSE_01111)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    out = fetch_insee_prix_sous_classe("01111", raw_dir=tmp_path)
+
+    assert appels["n"] == 2
+    assert set(out["poste"]) == {"CP01111"}
+
+
+def test_fetch_insee_prix_sous_classe_abandonne_apres_le_nombre_de_tentatives(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    appels = {"n": 0}
+
+    def fake_get(*a, **k):
+        appels["n"] += 1
+        raise requests.exceptions.ConnectionError("connexion reinitialisee")
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    try:
+        fetch_insee_prix_sous_classe("01111", raw_dir=tmp_path)
+        raised = False
+    except requests.RequestException:
+        raised = True
+
+    assert raised
+    assert appels["n"] == NB_TENTATIVES_CONNEXION
 
 
 def test_fetch_insee_prix_sous_classe_refuse_une_autre_erreur_http(
