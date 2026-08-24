@@ -78,8 +78,8 @@ COLONNES_PRIX = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 COLONNES_POIDS = ["axe", "modalite", "poste", "pm"]
 COLONNES_SALAIRE = ["source", "poste", "periode", "valeur", "qualite", "interpole"]
 
-# Meme reference que dashboard.py (ADR 0009) : synchronisee a la main, un seul
-# lieu de verite n'existe pas encore dans le projet.
+# Meme reference que observatoire.pages.indices (ADR 0009) : synchronisee a
+# la main, un seul lieu de verite n'existe pas encore dans le projet.
 REFERENCE = "2019-12"
 
 
