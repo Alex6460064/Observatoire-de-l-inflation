@@ -334,7 +334,7 @@ pour 1 et 2.
 
 ### 4.2 L'indice Observatoire, poste par poste
 
-Quatre postes ont une source propre. **Tout le reste du panier retombe sur
+Cinq postes ont une source propre. **Tout le reste du panier retombe sur
 l'IPCH** (ADR 0014).
 
 | poste | source propre | fréquence | couverture | qualité |
@@ -343,35 +343,45 @@ l'IPCH** (ADR 0014).
 | `CP041` loyers réels | « Carte des loyers », min. Transition écologique | annuelle | 2018, 2022→2025 | `api_ouverte` |
 | `CP045` énergie logement | CRE, tarif réglementé de vente d'électricité | barème daté | 2012→2026 | `api_ouverte` |
 | `CP072` utilisation du véhicule | prix-carburants.gouv.fr | quotidienne | 2019→2026 | `api_ouverte` |
+| `CP071` achat de véhicules | AAA Data, « Intelligence Auto » | 2 points (cumul YTD) | raccord IPCH 2025-05→2026-05, à plat ensuite | `synthese_presse` |
 
 Poids HBS couverts par une source propre :
 
 ```
-              CP01   CP041   CP045   CP072   total
-QU1            147     175      55      48    425 ‰
-QU3            154      71      46      58    329 ‰
-QU5            128      25      36      50    239 ‰
+              CP01   CP041   CP045   CP072   CP071   total
+QU1            147     175      55      48      32    457 ‰
+QU3            154      71      46      58      49    378 ‰
+QU5            128      25      36      50      80    319 ‰
 ```
 
-Soit **24 à 43 % du panier selon le quintile**. L'indice Observatoire n'est donc
+Soit **24 à 46 % du panier selon le quintile**. L'indice Observatoire n'est donc
 pas une variante cosmétique de l'IPCH repondéré : il en diffère sur les postes qui
 ont le plus augmenté depuis 2019.
 
 **`CP042` reçoit `CP041`**, ici comme ailleurs (section 3.4).
 
-**Candidat retenu, collecte en cours : `CP071` achat de véhicules.** ADEME
-Car Labelling (ADR 0020, archivage trimestriel) est abandonné : source
-retenue désormais **AAA Data** (communiqués « Intelligence Auto »), badge
-`qualite = synthese_presse` faute de méthodologie publiée — décision
-assumée malgré l'absence de protocole auditable (ADR 0024). Argus écarté :
-ce n'est pas un prix de voiture neuve mais une cote de décote sur
-l'occasion. 9 points saisis le 24/08/2026 dans `data/manual/releves.csv`
-(`collecte.releves_manuels.charger_releves_manuels`, docs/SOURCES.md) ;
-`CP071` reste sur repli IPCH tant que la règle de conversion cumul-annuel →
-point mensuel n'est pas validée ici, et que le backlog des Intelligence
-Auto restants n'est pas collecté. `CP11`
-(restauration/hôtellerie) et `CP12`/`CP13` (assurance) restent sur l'IPCH,
-faute de source indépendante utilisable (`docs/SOURCES.md`).
+**`CP071` achat de véhicules, actif (ADR 0024, ADR 0025).** ADEME Car
+Labelling (ADR 0020, archivage trimestriel) est abandonné : source retenue
+**AAA Data** (communiqués « Intelligence Auto »), badge `qualite =
+synthese_presse` faute de méthodologie publiée — décision assumée malgré
+l'absence de protocole auditable (ADR 0024). Argus écarté : ce n'est pas un
+prix de voiture neuve mais une cote de décote sur l'occasion.
+
+AAA Data ne publie jamais un prix mensuel toutes motorisations confondues,
+seulement des cumuls depuis le 1er janvier — le raccord ADR 0021 est donc
+ancré sur les deux seuls points comparables trouvés à ce jour : cumul
+janvier-mai 2025 (35 043 €) et cumul janvier-mai 2026 (36 319 €), chacun
+ancré à son dernier mois. IPCH `CP071` (Eurostat publie ce code groupe
+directement) avant 2025-05 ; niveau chaîné sur le ratio AAA Data entre
+2025-05 et 2026-05 ; **valeur maintenue à plat après 2026-05**, faute de
+capture plus récente — aucune tendance n'est extrapolée (ADR 0025).
+10 points bruts saisis le 24/08/2026 dans `data/manual/releves.csv`
+(`collecte.releves_manuels.charger_releves_manuels`, docs/SOURCES.md) ; les
+quatre points annuels par motorisation (essence/électrique, deux
+publications divergentes) restent en base pour traçabilité mais n'entrent
+dans aucun calcul. `CP11` (restauration/hôtellerie) et `CP12`/`CP13`
+(assurance) restent sur l'IPCH, faute de source indépendante utilisable
+(`docs/SOURCES.md`).
 
 ⚠️ **`CP01` en repli IPCH temporaire (ADR 0023).** Deux blocages non résolus
 (ADR 0019) : la règle de conversion des périodes hétérogènes de Familles
@@ -380,9 +390,9 @@ datés n'est pas tranchée, et cinq éditions (2019, 2020, 2023, 2024, 2026)
 n'ont pas été récupérées. `CP01` se comporte donc, pour l'instant, comme
 n'importe quel poste sans source propre : il retombe sur l'IPCH, sans code de
 raccord particulier. Tant que ce repli dure, l'indice Observatoire ne couvre
-que `CP041` + `CP045` + `CP072`, soit **11 à 28 % du panier selon le
-quintile** (111 ‰ en QU5, 278 ‰ en QU1 — total moins les 128-154 ‰ de
-`CP01`), pas les 24-43 % annoncés par l'ADR 0014.
+que `CP041` + `CP045` + `CP072` + `CP071`, soit **19 à 31 % du panier selon
+le quintile** (191 ‰ en QU5, 310 ‰ en QU1 — total moins les 128-154 ‰ de
+`CP01`), pas les 24-46 % annoncés ci-dessus.
 
 ### 4.2 bis Assemblage : du poste HBS 1999 vers les sous-classes COICOP 2018
 
@@ -923,3 +933,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0022 | comparaison salaires/prix : ajout de `salaire_smb` |
 | 0023 | indice Observatoire en deux temps, `CP01` différé |
 | 0024 | `CP071` : source AAA Data malgré l'absence de méthodologie publiée |
+| 0025 | `CP071` : raccord IPCH/AAA Data ancré sur la paire cumul-YTD, poste actif |

@@ -1194,7 +1194,7 @@ mensuels comparables à l'IPC (même besoin que Familles Rurales, ADR 0019)
 n'est pas tranchée et ne doit pas être codée avant de l'être.
 
 **Chiffres vérifiés et saisis dans `data/manual/releves.csv` aujourd'hui**
-(9 lignes, poste `CP071`) :
+(10 lignes, poste `CP071`) :
 
 | source | période | motorisation | prix moyen | évolution |
 |---|---|---|---|---|
@@ -1202,11 +1202,18 @@ n'est pas tranchée et ne doit pas être codée avant de l'être.
 | Communiqué du 01/01/2026 | année 2025 | électrique | 42 992 € | −0,1 % |
 | Intelligence Auto n°88 (19/01/2026) | année 2025 | essence | 25 884 € | −3,6 % |
 | Intelligence Auto n°88 (19/01/2026) | année 2025 | électrique | 42 788 € | −0,8 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2025 | globale | 35 043 € | — |
 | Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | globale | 36 319 € | +3,6 % |
 | Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | électrique | 42 541 € | −0,8 % |
 | Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | hybride | 36 757 € | −1,8 % |
 | Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | essence | 25 202 € | −0,7 % |
 | Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | diesel | 45 463 € | +13,3 % |
+
+**Décision (ADR 0025) : `CP071` adopté comme poste actif.** La paire de
+points `globale`/`cumul_ytd` ci-dessus (35 043 € → 36 319 €) sert d'ancrage
+au raccord ADR 0021 — c'est la seule paire trouvée à ce jour sur la même
+métrique. Les quatre lignes annuelles par motorisation restent en base pour
+traçabilité mais n'entrent dans aucun calcul (`docs/METHODOLOGIE.md` 4.2).
 
 URLs exactes : `communique-de-presse-1er-janv-2026`,
 `intelligence-auto-n88-marche-des-voitures-neuves-atone-en-2026-reprise-dynamique-attendue-des-2027`,
@@ -1231,12 +1238,10 @@ documenter dans docs/METHODOLOGIE.md`.
 ⚠️ **Pondération par les ventes réelles absente** des chiffres cités — même
 réserve que l'ADR 0020 pour ADEME.
 
-**Ce qui reste à faire avant tout calcul d'indice** : la règle de conversion
-cumul-annuel → point mensuel (à valider dans `docs/METHODOLOGIE.md` avant
-codage, CLAUDE.md), le choix entre les deux séries 2025 divergentes ou leur
-conservation en parallèle, et la collecte des Intelligence Auto restants
-(~92 numéros publiés à ce jour, 9 lignes seulement couvertes aujourd'hui) —
-`# TODO: backlog de collecte, session dédiée suivante`.
+**Ce qui reste ouvert malgré l'adoption** : la collecte des Intelligence
+Auto restants (~92 numéros publiés à ce jour, une seule paire de points
+exploitée pour le raccord) et la nature TTC/HT du prix, non documentée par
+AAA Data — `# TODO: backlog de collecte, session dédiée suivante`.
 
 ## Restauration / hôtellerie (`CP11`) — rien trouvé
 

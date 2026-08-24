@@ -86,5 +86,5 @@ def test_fichier_introuvable(tmp_path):
 def test_le_registre_reel_est_valide():
     table = charger_releves_manuels(poste="CP071")
 
-    assert len(table) == 9
+    assert len(table) == 10
     assert set(table["qualite"]) == {"synthese_presse"}

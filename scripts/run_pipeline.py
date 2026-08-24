@@ -37,6 +37,10 @@ from observatoire.collecte.insee import (
     fetch_insee_prix_par_sous_classe,
 )
 from observatoire.collecte.recensement_logement import fetch_recensement_logement_2022
+from observatoire.collecte.releves_manuels import charger_releves_manuels
+from observatoire.traitement.aaa_data import (
+    construire_serie_cp071 as raccorder_serie_cp071,
+)
 from observatoire.traitement.carburants import (
     combiner_mix_cp072,
     construire_prix_carburant,
@@ -243,6 +247,21 @@ def construire_serie_cp072(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
     )[COLONNES_PRIX]
 
 
+def construire_serie_cp071(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
+    """Indice Observatoire, groupe `CP071` (achat de vehicules, ADR 0024, ADR 0025).
+
+    Raccord IPCH -> AAA Data (`traitement.aaa_data.construire_serie_cp071`) :
+    IPCH groupe `CP071` (Eurostat publie ce code directement) avant la
+    premiere capture AAA Data, chainage sur le ratio entre les deux
+    ancrages `data/manual/releves.csv` ensuite.
+    """
+    ipch_cp071 = normaliser_eurostat_prix_sous_classe(
+        fetch_eurostat_prix_par_sous_classe(["CP071"], raw_dir=raw_dir)
+    )
+    releves_cp071 = charger_releves_manuels(poste="CP071")
+    return raccorder_serie_cp071(ipch_cp071, releves_cp071)[COLONNES_PRIX]
+
+
 def construire_prix_indice_observatoire(
     prix: pd.DataFrame, postes_pondere: list[str], raw_dir: Path = RAW_DIR
 ) -> pd.DataFrame:
@@ -264,6 +283,7 @@ def construire_prix_indice_observatoire(
         "CP042": serie_cp041,
         "CP045": construire_serie_cp045(raw_dir),
         "CP072": construire_serie_cp072(raw_dir),
+        "CP071": construire_serie_cp071(raw_dir),
     }
 
     assemble = assembler_prix_indice_observatoire(
