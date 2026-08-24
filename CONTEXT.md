@@ -78,6 +78,15 @@ Le vecteur de parts budgétaires, en pour mille, associé à un profil de ménag
 Issu de l'enquête Eurostat HBS, jamais saisi ni estimé.
 _Avoid_: pondération perso, coefficients
 
+**Poids national INSEE** :
+Le panier officiel de l'IPC — 263 postes, poids sur 10 000, revu chaque année
+par l'INSEE. Source distincte du poids de profil ci-dessus (Eurostat HBS) :
+sert à expliquer *le panier de l'INSEE*, jamais mélangé avec les poids de
+profil sous une même étiquette « panier ». N'entre dans aucun calcul des cinq
+indices — affiché uniquement à des fins pédagogiques (page « panier INSEE »).
+_Avoid_: panier INSEE (ambigu, préciser toujours « national » ou « de
+profil »), pondération officielle
+
 **Millésime des poids** :
 L'année de collecte de l'enquête dont sortent les poids de profil — **2017**, et
 non l'année d'étiquette de la vague européenne, qui vaut 2020 pour la France sans

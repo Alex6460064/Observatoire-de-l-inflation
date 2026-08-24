@@ -359,13 +359,19 @@ ont le plus augmenté depuis 2019.
 
 **`CP042` reçoit `CP041`**, ici comme ailleurs (section 3.4).
 
-**Candidat non adopté : `CP071` achat de véhicules.** ADEME Car Labelling
-fournit un prix réel, ouvert, mais aucun historique (ADR 0020). Archivage
-trimestriel démarré (première capture 23/08/2026) sans intégration à l'indice
-— la règle de raccord ci-dessous (4.3) est validée mais ne peut s'appliquer
-qu'à partir de la deuxième capture. `CP11` (restauration/hôtellerie) et
-`CP12`/`CP13` (assurance) restent sur l'IPCH, faute de source indépendante
-utilisable (`docs/SOURCES.md`).
+**Candidat retenu, collecte en cours : `CP071` achat de véhicules.** ADEME
+Car Labelling (ADR 0020, archivage trimestriel) est abandonné : source
+retenue désormais **AAA Data** (communiqués « Intelligence Auto »), badge
+`qualite = synthese_presse` faute de méthodologie publiée — décision
+assumée malgré l'absence de protocole auditable (ADR 0024). Argus écarté :
+ce n'est pas un prix de voiture neuve mais une cote de décote sur
+l'occasion. 9 points saisis le 24/08/2026 dans `data/manual/releves.csv`
+(`collecte.releves_manuels.charger_releves_manuels`, docs/SOURCES.md) ;
+`CP071` reste sur repli IPCH tant que la règle de conversion cumul-annuel →
+point mensuel n'est pas validée ici, et que le backlog des Intelligence
+Auto restants n'est pas collecté. `CP11`
+(restauration/hôtellerie) et `CP12`/`CP13` (assurance) restent sur l'IPCH,
+faute de source indépendante utilisable (`docs/SOURCES.md`).
 
 ⚠️ **`CP01` en repli IPCH temporaire (ADR 0023).** Deux blocages non résolus
 (ADR 0019) : la règle de conversion des périodes hétérogènes de Familles
@@ -916,3 +922,4 @@ redistribué depuis le dépôt (ADR 0019).
 | 0021 | raccord de sources : IPCH avant la première capture, série propre après |
 | 0022 | comparaison salaires/prix : ajout de `salaire_smb` |
 | 0023 | indice Observatoire en deux temps, `CP01` différé |
+| 0024 | `CP071` : source AAA Data malgré l'absence de méthodologie publiée |

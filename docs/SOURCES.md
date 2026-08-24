@@ -100,6 +100,41 @@ section suivante) : collecter l'indice 3 demande donc jusqu'à **293 appels**,
 contre une limite de **30 appels/minute/IP** — prévoir un espacement dans la
 collecte, pas un appel massif en boucle serrée.
 
+### Pondération de l'IPC officiel — candidat pour la page « panier INSEE »
+
+Recherche du 24/08/2026, pour documenter le panier national INSEE (263
+postes, poids sur 10 000, revu chaque année) — distinct des poids de profil
+Eurostat HBS de `poids.csv` (section suivante), jamais mélangés sous une
+même étiquette.
+
+Fiches trouvées sur insee.fr, ex. « Pondération de l'indice des prix à la
+consommation - Base 2025 - Ensemble des ménages - France - Transports,
+communications et hôtellerie », `IDBANK 011818239` — un identifiant par
+poste/groupe, même famille de séries que l'IPC officiel ci-dessus.
+
+**Appel test réel, le 24/08/2026 :**
+
+```
+GET https://api.insee.fr/series/BDM/V1/data/SERIES_BDM/011818239
+```
+
+Réponse `200`, SDMX-ML, sans clé d'API — endpoint générique par IDBANK,
+plus simple que la clé à 12 dimensions de l'IPC officiel (pas besoin de
+reconstruire `FREQ.INDICATEUR...`, l'IDBANK suffit). Confirmé :
+`UNIT_MEASURE="P10000"` (poids sur 10 000, comme annoncé sur la fiche),
+`FREQ="A"` (annuel), valeurs 2015→2026 identiques à celles affichées sur
+`insee.fr/fr/statistiques/serie/011818239` (2019 = 2403, 2024 = 2489).
+
+⚠️ **Un seul IDBANK vérifié pour l'instant** (le groupe « Transports,
+communications et hôtellerie »). Il reste à retrouver l'IDBANK de chacun des
+263 postes/groupes du panier — pas de wildcard testé sur `SERIES_BDM`, à
+vérifier si un catalogue/recherche en masse existe côté INSEE avant de
+partir sur 263 appels un par un. `# TODO: collecte complète non faite —
+session dédiée, voir docs/METHODOLOGIE.md 4.2 ter.`
+
+Licence : même statut que l'IPC officiel ci-dessus (même producteur, même
+API), pas revérifiée séparément — à confirmer à la collecte complète.
+
 ---
 
 ## Eurostat — prix (indices 1, 2 et 4)
@@ -1136,6 +1171,72 @@ qui renvoie le remède (raccord de sources) à une méthodologie non encore
 validée. Archivage trimestriel démarré dès maintenant
 (`collecte.ademe.fetch_ademe_carlabelling`) pour ne pas perdre le millésime
 `2026-Q3`, seul accessible faute d'archive rétroactive.
+
+**Cet archivage est arrêté depuis l'ADR 0024** : voir la section AAA Data
+ci-dessous, source retenue pour `CP071`.
+
+## AAA Data — Intelligence Auto, source retenue pour `CP071` (ADR 0024)
+
+Vérifié le 24/08/2026, directement sur `www.aaa-data.fr` (attention au
+certificat TLS : seul `www.aaa-data.fr` répond, `aaa-data.fr` nu échoue).
+Pas d'API, pas de fichier téléchargeable, pas de licence de réutilisation
+affichée : des articles HTML, deux formats —
+
+- **communiqué de presse mensuel** (immatriculations du mois, mix de
+  motorisations, rarement un prix moyen) ;
+- **« Intelligence Auto »**, périodique (~11/an), qui contient le prix moyen
+  d'un véhicule neuf, en cumul depuis le 1er janvier de l'année, par
+  motorisation.
+
+Aucune des deux ne publie de série mensuelle de prix moyen point par point —
+seulement des cumuls annuels glissants. La règle de conversion en points
+mensuels comparables à l'IPC (même besoin que Familles Rurales, ADR 0019)
+n'est pas tranchée et ne doit pas être codée avant de l'être.
+
+**Chiffres vérifiés et saisis dans `data/manual/releves.csv` aujourd'hui**
+(9 lignes, poste `CP071`) :
+
+| source | période | motorisation | prix moyen | évolution |
+|---|---|---|---|---|
+| Communiqué du 01/01/2026 | année 2025 | essence | 25 657 € | −4,6 % |
+| Communiqué du 01/01/2026 | année 2025 | électrique | 42 992 € | −0,1 % |
+| Intelligence Auto n°88 (19/01/2026) | année 2025 | essence | 25 884 € | −3,6 % |
+| Intelligence Auto n°88 (19/01/2026) | année 2025 | électrique | 42 788 € | −0,8 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | globale | 36 319 € | +3,6 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | électrique | 42 541 € | −0,8 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | hybride | 36 757 € | −1,8 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | essence | 25 202 € | −0,7 % |
+| Intelligence Auto n°93 (17/06/2026) | cumul janv-mai 2026 | diesel | 45 463 € | +13,3 % |
+
+URLs exactes : `communique-de-presse-1er-janv-2026`,
+`intelligence-auto-n88-marche-des-voitures-neuves-atone-en-2026-reprise-dynamique-attendue-des-2027`,
+`intelligence-auto-n93-juin` (toutes sous `https://www.aaa-data.fr/actualites/`,
+voir `data/manual/releves.csv` pour les URLs complètes par ligne).
+
+⚠️ **Deux publications, même période nominale, chiffres différents.** Le
+communiqué du 01/01/2026 et Intelligence Auto n°88 du 19/01/2026 donnent
+tous les deux « le prix moyen de l'année 2025 vs 2024 », avec des valeurs
+qui ne concordent pas (25 657 € contre 25 884 € en essence, 42 992 € contre
+42 788 € en électrique). Vérifié par citation verbatim des deux articles,
+pas une erreur de lecture. AAA Data ne publie ni méthode ni note de révision
+expliquant l'écart. **Aucune tentative de trancher laquelle est « la
+bonne » — les deux lignes sont conservées dans `data/manual/releves.csv`**,
+c'est la donnée telle que la source la publie.
+
+⚠️ **Nature du prix non précisée**, même défaut que l'ADEME ci-dessus : TTC ou
+HT, bonus-malus déduit ou non — non documenté par AAA Data. `# TODO: à
+vérifier si un lexique AAA Data existe ; sinon limite méthodologique à
+documenter dans docs/METHODOLOGIE.md`.
+
+⚠️ **Pondération par les ventes réelles absente** des chiffres cités — même
+réserve que l'ADR 0020 pour ADEME.
+
+**Ce qui reste à faire avant tout calcul d'indice** : la règle de conversion
+cumul-annuel → point mensuel (à valider dans `docs/METHODOLOGIE.md` avant
+codage, CLAUDE.md), le choix entre les deux séries 2025 divergentes ou leur
+conservation en parallèle, et la collecte des Intelligence Auto restants
+(~92 numéros publiés à ce jour, 9 lignes seulement couvertes aujourd'hui) —
+`# TODO: backlog de collecte, session dédiée suivante`.
 
 ## Restauration / hôtellerie (`CP11`) — rien trouvé
 
