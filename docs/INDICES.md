@@ -31,7 +31,7 @@ I_p(t) = 100 × P_p(t) / P_p(t₀)          I(t) = Σ w_p × I_p(t) / 1000
 | 1 | `ipch` | Eurostat | officiels Eurostat | ✅ collecte + traitement (`collecte/eurostat.py`, `traitement/eurostat.py`) |
 | 2 | `ipch_repondere` | Eurostat | profil HBS | ✅ collecte + traitement + dashboard (`collecte/eurostat.py`, `traitement/eurostat.py`, `dashboard.py::calculer_indice_2`) |
 | 3 | `ipc_repondere` | INSEE | profil HBS | ✅ collecte + traitement + dashboard (`collecte/insee.py`, `traitement/insee.py`, `dashboard.py::calculer_indice_3`) |
-| 4 | `indice_observatoire` | sources propres poste par poste | profil HBS | 🟡 collecte + traitement + dashboard pour `CP041`/`CP045`/`CP072` (`traitement/observatoire.py::assembler_prix_indice_observatoire`, `dashboard.py::calculer_indice_4`) ; `CP01` en repli IPCH temporaire (ADR 0023) |
+| 4 | `indice_observatoire` | sources propres poste par poste | profil HBS | 🟡 collecte + traitement + dashboard pour `CP041`/`CP045`/`CP072`/`CP071` (`traitement/observatoire.py::assembler_prix_indice_observatoire`, `dashboard.py::calculer_indice_4`) ; `CP01` en repli IPCH temporaire (ADR 0023) |
 
 `analyse/indice.py` porte la fonction d'agrégation `(prix, poids) → indice`,
 déjà utilisée par les indices 2 et 3 ; servira aussi à l'indice 4 une fois ses
@@ -109,7 +109,7 @@ projet : « l'IPC dit +X %, avec votre structure de budget ça donne +Y % ».
 ## Indice 4 — `indice_observatoire`
 
 **Ce que c'est** : le seul indice à sources de prix hétérogènes, assumé
-comme tel. Quatre postes ont une source de prix propre (ni INSEE ni
+comme tel. Cinq postes ont une source de prix propre (ni INSEE ni
 Eurostat) ; tout le reste du panier retombe sur l'IPCH (ADR 0014).
 
 | poste | source propre | qualité |
@@ -117,16 +117,17 @@ Eurostat) ; tout le reste du panier retombe sur l'IPCH (ADR 0014).
 | `CP01` alimentation | Familles Rurales | `etude_publiee` |
 | `CP041` loyers réels | Carte des loyers (min. Transition écologique) | `api_ouverte` |
 | `CP045` énergie logement | CRE, tarif réglementé électricité | `api_ouverte` |
+| `CP071` achat de véhicules | AAA Data, raccordé à l'IPCH (ADR 0024, ADR 0025) | `synthese_presse` |
 | `CP072` carburant | prix-carburants.gouv.fr | `api_ouverte` |
 
-Ces quatre postes couvrent **24 à 43 % du panier selon le quintile**
+Ces cinq postes couvriraient **24 à 46 % du panier selon le quintile**
 (METHODOLOGIE §4.2). `CP042` (loyers imputés) reçoit l'indice de `CP041`
 (ADR 0005), comme dans les autres indices.
 
 ⚠️ **`CP01` en repli IPCH temporaire (ADR 0023)** : deux blocages non
 résolus sur Familles Rurales (ADR 0019). La courbe actuellement affichée
-couvre `CP041` + `CP045` + `CP072`, soit **11 à 28 % du panier selon le
-quintile**, pas les 24-43 % ci-dessus.
+couvre `CP041` + `CP045` + `CP072` + `CP071`, soit **19 à 31 % du panier
+selon le quintile** (METHODOLOGIE §4.2), pas les 24-46 % ci-dessus.
 
 **Poids** : profil de ménage HBS, identique aux indices 2 et 3.
 
